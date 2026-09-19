@@ -150,8 +150,16 @@ export const SHIP_STYLES: ShipStyle[] = [
   },
 ];
 
-export const styleById = (id: string | undefined): ShipStyle =>
-  SHIP_STYLES.find((style) => style.id === id) ?? SHIP_STYLES[0];
+/**
+ * Resolves a style id. Composite ids ("sentinel+exotic") are fused on the fly so
+ * a URL, a saved build or a blueprint can name a hybrid hull directly.
+ */
+export function styleById(id: string | undefined, seed = 1): ShipStyle {
+  if (!id) return SHIP_STYLES[0];
+  const parts = id.split("+").filter(Boolean);
+  if (parts.length > 1) return fuseStyles(parts, seed);
+  return SHIP_STYLES.find((style) => style.id === id) ?? SHIP_STYLES[0];
+}
 
 export const familyLabel: Record<ShipFamily, string> = {
   corvette: "Corvette",

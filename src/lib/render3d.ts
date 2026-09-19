@@ -777,9 +777,12 @@ export interface BuildMeshOptions {
   style?: string | ShipStyle;
 }
 
-export function resolveStyle(option: string | ShipStyle | undefined): ShipStyle {
-  if (!option) return styleById("corvette");
-  return typeof option === "string" ? styleById(option) : option;
+export function resolveStyle(
+  option: string | ShipStyle | undefined,
+  seed = 1,
+): ShipStyle {
+  if (!option) return styleById("corvette", seed);
+  return typeof option === "string" ? styleById(option, seed) : option;
 }
 
 export function buildShipMesh(build: Build, options: BuildMeshOptions = {}): ShipMesh {
