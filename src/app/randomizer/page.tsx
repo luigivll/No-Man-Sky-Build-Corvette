@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import HullSchematic from "@/components/HullSchematic";
+import ShipViewPanel from "@/components/ShipViewPanel";
 import RequirementTracker from "@/components/RequirementTracker";
 import ShoppingList from "@/components/ShoppingList";
 import StatRadar from "@/components/StatRadar";
@@ -452,14 +452,12 @@ export default function RandomizerPage() {
             </div>
           </Panel>
 
-          <Panel className="overflow-hidden">
-            <PanelHeader
-              title="Hull schematic"
-              subtitle="Procedural projection of the generated hull."
-              icon={<Icon name="ScanLine" className="h-4 w-4" />}
-            />
-            <HullSchematic build={build} height={340} />
-          </Panel>
+          <ShipViewPanel
+            build={build}
+            height={380}
+            title="Generated hull preview"
+            subtitle="Procedural Corvette built from the rolled module list."
+          />
 
           <Panel accent="#ff7a1a" className="overflow-hidden">
             <PanelHeader

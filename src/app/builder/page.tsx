@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import HullSchematic from "@/components/HullSchematic";
+import ShipViewPanel from "@/components/ShipViewPanel";
 import PartPicker from "@/components/PartPicker";
 import RequirementTracker from "@/components/RequirementTracker";
 import ShoppingList from "@/components/ShoppingList";
@@ -242,14 +242,12 @@ export default function BuilderPage() {
             </Panel>
           )}
 
-          <Panel className="overflow-hidden">
-            <PanelHeader
-              title="Hull schematic"
-              subtitle="Top-down projection built from the modules you placed."
-              icon={<Icon name="ScanLine" className="h-4 w-4" />}
-            />
-            <HullSchematic build={build} height={380} />
-          </Panel>
+          <ShipViewPanel
+            build={build}
+            height={420}
+            title="Ship preview"
+            subtitle="Your Corvette as built - drag to orbit, then flip to blueprint for the technical view."
+          />
         </div>
 
         <div className="space-y-4">

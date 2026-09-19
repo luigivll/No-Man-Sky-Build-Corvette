@@ -11,6 +11,7 @@
  *  - every iconic blueprint compiles into a legal build with real part ids
  */
 import { buildFromBlueprint, computeStats, costBreakdown, countParts, expandParts, isSpaceworthy, requirementStatus, inventorySlots } from "../src/lib/build";
+import { HULL_PALETTES, buildPartMesh, buildShipMesh, projectScene, DEFAULT_VIEW } from "../src/lib/render3d";
 import { blueprints, categories, meta, parts } from "../src/lib/data";
 import { ROLE_DEFS, generateBuild, type GeneratorOptions } from "../src/lib/randomizer";
 import type { RoleId } from "../src/lib/types";
@@ -163,6 +164,78 @@ check(
   `minimalist hulls stay lean across all size presets (${minimalistCounts.join(", ")})`,
   minimalistCounts.every((count) => count <= 26),
 );
+
+console.log(`\n== 3D ship renderer ==`);
+{
+  const canvasW = 900;
+  const canvasH = 600;
+
+  // every blueprint must produce drawable geometry that stays inside frame
+  for (const blueprint of blueprints) {
+    const build = buildFromBlueprint(blueprint);
+    const mesh = buildShipMesh(build);
+    const scene = projectScene(mesh, DEFAULT_VIEW, canvasW, canvasH, { padding: 1.24 });
+    const faceCount = mesh.parts.reduce((n, part) => n + part.faces.length, 0);
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    let bad = 0;
+    for (const face of scene.faces) {
+      for (const pair of face.points.split(" ")) {
+        const [x, y] = pair.split(",").map(Number);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) bad += 1;
+        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+      }
+    }
+    for (const plume of scene.plumes) {
+      for (const pair of plume.points.split(" ")) {
+        const [x, y] = pair.split(",").map(Number);
+        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+      }
+    }
+
+    const inFrame = minX >= -2 && maxX <= canvasW + 2 && minY >= -2 && maxY <= canvasH + 2;
+    check(
+      `${blueprint.name.padEnd(26)} ${String(faceCount).padStart(4)} faces  x[${minX.toFixed(0)},${maxX.toFixed(0)}] y[${minY.toFixed(0)},${maxY.toFixed(0)}]`,
+      bad === 0 && faceCount > 100 && inFrame,
+      bad > 0 ? `${bad} non-finite points` : "geometry clipped outside the viewport",
+    );
+  }
+
+  // the renderer must survive an empty build and single-module builds
+  const empty = buildShipMesh({ id: "e", name: "e", createdAt: 0, slots: {}, roles: [], origin: "manual" });
+  const emptyScene = projectScene(empty, DEFAULT_VIEW, canvasW, canvasH);
+  check("empty build renders without geometry", empty.parts.length === 0 && emptyScene.faces.length === 0);
+
+  // every module must have its own portrait geometry
+  let portraitFailures = 0;
+  for (const part of parts) {
+    const mesh = buildPartMesh(part);
+    const faces = mesh.parts[0]?.faces.length ?? 0;
+    if (faces < 2) portraitFailures += 1;
+  }
+  check(`all ${parts.length} modules have portrait geometry`, portraitFailures === 0, `${portraitFailures} too simple`);
+
+  // palettes must all produce valid colours
+  const paletteOk = HULL_PALETTES.every((p) => /^#[0-9a-f]{6}$/i.test(p.base));
+  check(`all ${HULL_PALETTES.length} hull palettes are valid hex colours`, paletteOk);
+
+  // a maximum-size hull still renders (performance guard)
+  const maxBuild = generateBuild({ roles: ["massive"], size: "heavy", salvageOnly: false, symmetry: true, seed: 4242 });
+  const maxMesh = buildShipMesh(maxBuild);
+  const maxFaces = maxMesh.parts.reduce((n, part) => n + part.faces.length, 0);
+  const t0 = Date.now();
+  for (let i = 0; i < 12; i += 1) {
+    projectScene(maxMesh, { yaw: i * 0.4, pitch: -0.34, zoom: 1 }, canvasW, canvasH);
+  }
+  const perFrame = (Date.now() - t0) / 12;
+  check(
+    `heaviest hull (${countParts(maxBuild)} modules, ${maxFaces} faces) projects in ${perFrame.toFixed(1)}ms/frame`,
+    perFrame < 40,
+    "too slow to orbit smoothly",
+  );
+}
 
 console.log(
   failureSummary(),

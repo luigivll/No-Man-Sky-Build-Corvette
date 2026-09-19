@@ -12,7 +12,7 @@ import {
 } from "@/lib/build";
 import { meta } from "@/lib/data";
 import { useBuild } from "./BuildProvider";
-import HullSchematic from "./HullSchematic";
+import ShipPreview3D from "./ShipPreview3D";
 import { Icon } from "./Icon";
 import { HudLabel } from "./ui";
 
@@ -46,7 +46,7 @@ export default function ContinueBuildCard() {
         </span>
       </header>
 
-      <HullSchematic build={build} height={300} />
+      <ShipPreview3D build={build} height={300} compact />
 
       <div className="grid grid-cols-2 gap-2 border-t border-white/5 p-3 sm:grid-cols-4">
         <div>

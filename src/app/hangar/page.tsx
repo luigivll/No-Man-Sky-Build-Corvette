@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useBuild } from "@/components/BuildProvider";
-import HullSchematic from "@/components/HullSchematic";
+import ShipViewPanel from "@/components/ShipViewPanel";
 import CopyButton from "@/components/CopyButton";
 import { Icon } from "@/components/Icon";
 import { Chip, HudLabel, Panel } from "@/components/ui";
@@ -120,7 +120,7 @@ export default function HangarPage() {
                   </span>
                 </header>
 
-                <HullSchematic build={saved} height={220} showEmpty={false} />
+                <ShipViewPanel build={saved} height={260} showPalette={false} title="Hull render" />
 
                 <div className="grid grid-cols-3 gap-2 border-t border-white/5 p-3">
                   <div>

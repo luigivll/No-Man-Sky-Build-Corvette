@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
-import HullSchematic from "./HullSchematic";
+import ShipViewPanel from "./ShipViewPanel";
 import RequirementTracker from "./RequirementTracker";
 import StatRadar from "./StatRadar";
 import CopyButton from "./CopyButton";
@@ -285,15 +285,12 @@ export default function BlueprintSheet({ blueprint }: { blueprint: Blueprint }) 
         </Panel>
 
         <div className="space-y-4">
-          <Panel accent={blueprint.accent} className="overflow-hidden">
-            <PanelHeader
-              title="Projected silhouette"
-              subtitle="How the module list reads top-down."
-              accent={blueprint.accent}
-              icon={<Icon name="ScanLine" className="h-4 w-4" />}
-            />
-            <HullSchematic build={build} height={320} />
-          </Panel>
+          <ShipViewPanel
+            build={build}
+            height={360}
+            title="Projected silhouette"
+            subtitle={`How the ${blueprint.name} module list reads as a finished ship.`}
+          />
 
           <Panel className="overflow-hidden">
             <PanelHeader

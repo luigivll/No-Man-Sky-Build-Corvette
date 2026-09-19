@@ -5,6 +5,7 @@ import { rarityLabels, sourceLabels } from "@/lib/data";
 import { STAT_IDS } from "@/lib/build";
 import type { Part } from "@/lib/types";
 import { Icon } from "./Icon";
+import PartThumb from "./PartThumb";
 
 export default function PartRow({
   part,
@@ -24,7 +25,11 @@ export default function PartRow({
   tail?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-2 px-3 py-2.5 transition hover:bg-white/[0.02] sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex gap-3 px-3 py-2.5 transition hover:bg-white/[0.02]">
+      <div className="hidden sm:block">
+        <PartThumb part={part} size={78} />
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-semibold text-slate-100">
@@ -119,6 +124,7 @@ export default function PartRow({
             </button>
           </div>
         ) : null}
+      </div>
       </div>
     </div>
   );

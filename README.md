@@ -29,13 +29,15 @@ Extra scripts:
 
 ```bash
 npm run typecheck      # tsc --noEmit
-npm run verify         # headless sanity check of the data + generator logic
+npm run verify         # headless sanity check: data, generator logic AND the 3D renderer
+npm run render:preview # rasterise test PNGs of the ship renderer (scripts/out/*.png)
 ```
 
 > `npm run verify` proves the important stuff without a browser: every iconic
 > blueprint compiles into a **legal** Corvette (all Workshop minimums met, under
 > the 160-module cap), seeds are deterministic, salvage-first mode really cuts the
-> vendor bill, and combat hulls out-gun minimalist ones.
+> vendor bill, combat hulls out-gun minimalist ones, and every blueprint and
+> palette renders inside the viewport at a frame rate that stays smooth to orbit.
 
 ---
 
@@ -46,7 +48,45 @@ Mode selector, Corvette Workshop briefing (where the terminal is, how salvage
 works, part limits) and the live flight-certification checklist. Also shows the
 build you currently have in progress.
 
-### 2. Manual Builder (`/builder`)
+### 2. Ship previews — what your build will actually look like
+Every build view shows a **lit 3D render** of the finished Corvette, not just a
+diagram:
+
+* **Drag to orbit** the ship, scroll or use the zoom buttons, hit one of the five
+  camera presets (Hero / Starboard / Plan / Bow / Stern), or let the **turntable**
+  spin it.
+* Hover any module to see **which part you are looking at**.
+* Pick one of six **hull paints** (Gunmetal, Ivory, Crimson, Emerald, Cobalt,
+  Desert) to preview a colour scheme.
+* Flip the toggle to the **blueprint projection** at any time for the technical
+  top-down diagram.
+
+**Engine exhaust is rendered as flame**, and a shield envelope is drawn whenever
+the build carries a shield generator.
+
+The renderer is a compact software 3D pipeline written in `src/lib/render3d.ts` —
+no WebGL, no 3D library, no external assets:
+
+1. each module is turned into solid geometry from its `geometry` profile in the
+   parts database (`arrowhead` bridge, `offset-dome`, `s-blunt-block`, `s-foil`,
+   `hollow cone` engine bells, landing struts, turrets, …)
+2. modules are placed on a hull footprint — habitation pods spiral outward on a
+   square tile grid with alternating orientation, so hab-heavy builds grow into a
+   saucer/slab hull instead of a corridor, with a spanning deck plate tying the
+   cluster into one ship
+3. faces are shaded with ambient + diffuse + rim + specular lighting, then sorted
+   back-to-front (painter's algorithm) and projected as SVG polygons
+
+Every module in the picker and the Parts Codex also gets its own small render, so
+you can see a part before you place it.
+
+**Why not the official part images?** The in-game module renders on
+`nomansskyresources.com/corvette-parts` live on a CDN and are Hello Games' art.
+Rather than hot-link someone else's CDN (which would break, and isn't ours to
+redistribute), the app draws its own geometry from the same parts database — so it
+works offline, stays consistent, and every part is previewable.
+
+### 3. Manual Builder (`/builder`)
 A step-by-step form that follows the order the Workshop expects:
 Cockpit → Reactor → Habitation → Access Bay → Wings → Weapons → Shields →
 Main Engine → Light Thrusters → Landing Gear → **Review & Shopping List**.
@@ -57,7 +97,7 @@ Every module you place updates in real time:
 * the **part budget** meter (x/160) and flight-certification checks
 * the **shopping list** — buyable-at-vendor vs salvage-only, with costs
 
-### 3. Randomizer & Role Generator (`/randomizer`)
+### 4. Randomizer & Role Generator (`/randomizer`)
 Toggle role filters — **Combat**, **Exploration**, **Massive/Freighter-lite**,
 **Minimalist** — plus hull size, salvage-first sourcing and symmetry lock.
 
@@ -73,7 +113,7 @@ reproduces the exact same ship for anyone who opens it. Generated hulls get a
 procedural name ("The Void Leviathan", "MSV Warhammer M-5427") plus a written
 rationale for the part choices.
 
-### 4. Iconic Ship Blueprints — the "Badass Hangar" (`/blueprints`)
+### 5. Iconic Ship Blueprints — the "Badass Hangar" (`/blueprints`)
 Eleven pre-made blueprint sheets: Millennium Falcon, T-65 X-Wing, Imperial Star
 Destroyer, UNSC Pelican, The Rocinante, USS Enterprise, Serenity, Viper Mk II,
 SSV Normandy SR-2, USCSS Nostromo and Thunderbird 2.
@@ -83,11 +123,11 @@ parts, prices the vendor-buyable against the salvage-only modules, adds the
 C → S Nanite bill, projects the silhouette and stat radar, and gives build tips
 for making the shape read in-game. Load any blueprint into the builder and remix it.
 
-### 5. Parts Codex (`/parts`)
+### 6. Parts Codex (`/parts`)
 The whole database, searchable/filterable/sortable, with prices, sourcing, mass
 and per-stat contributions. One click drops a module into your active build.
 
-### 6. My Hangar (`/hangar`)
+### 7. My Hangar (`/hangar`)
 Builds saved to `localStorage` (up to 40). Load them back into the builder, export
 their shopping lists, or pin one as the active build.
 
@@ -128,7 +168,8 @@ data/
   parts.json              # module database + game rules
   blueprints.json         # pop-culture ship recipes
 scripts/
-  verify-logic.ts         # headless data + generator tests (npm run verify)
+  verify-logic.ts         # headless data + generator + renderer tests (npm run verify)
+  render-preview.ts       # writes test PNGs to scripts/out (npm run render:preview)
 src/
   app/
     layout.tsx            # shell: fonts, navbar, footer, build context
@@ -144,6 +185,9 @@ src/
     HullSchematic.tsx     # procedural top-down SVG ship preview
     StatRadar.tsx         # 5-axis performance radar
     ShoppingList.tsx      # buy/salvage list with tracker + export/print
+    ShipPreview3D.tsx     # interactive 3D ship render (orbit / zoom / paint)
+    ShipViewPanel.tsx     # ship-vs-blueprint toggle wrapper
+    PartThumb.tsx         # per-module render thumbnail
     RequirementTracker.tsx# flight certification + part budget
     PartPicker.tsx / PartRow.tsx
     BlueprintSheet.tsx    # full blueprint sheet UI
@@ -151,7 +195,8 @@ src/
   lib/
     build.ts              # build math: stats, costs, requirements, markdown export
     randomizer.ts         # role weighting, sizing, guarantees
-    schematic.ts          # hull layout geometry
+    render3d.ts           # software 3D renderer: geometry, lighting, projection
+    schematic.ts          # hull layout geometry (blueprint view)
     names.ts              # seeded RNG + procedural ship names
     data.ts / types.ts    # typed access to the JSON databases
 ```
