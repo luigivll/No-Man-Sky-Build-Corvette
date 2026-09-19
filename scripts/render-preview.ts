@@ -31,24 +31,42 @@ function svgFor(mesh: ShipMesh, view: ViewState, label: string) {
     : "";
 
   const faces = scene.faces
-    .map(
-      (face, index) =>
-        `<polygon id="f${index}" points="${face.points}" fill="${face.fill}" opacity="${face.opacity}" stroke="rgba(4,8,16,0.55)" stroke-width="0.4"/>`,
-    )
+    .map((face, index) => {
+      const glowing = face.kind === "emissive" || face.kind === "trim";
+      return `<polygon id="f${index}" points="${face.points}" fill="${face.fill}" opacity="${face.opacity}" stroke="${
+        glowing ? face.fill : "rgba(4,8,16,0.55)"
+      }" stroke-width="${glowing ? 2.2 : 0.4}" stroke-opacity="${glowing ? 0.45 : 1}"/>`;
+    })
     .join("");
 
-  const plumes = scene.plumes
-    .map(
-      (plume) =>
-        `<polygon points="${plume.points}" fill="${plume.fill}" opacity="${plume.opacity}"/>` +
-        `<polygon points="${plume.core}" fill="#ffe9c7" opacity="${plume.coreOpacity}"/>`,
-    )
-    .join("");
+  const plumes =
+    scene.plumes
+      .map((plume) =>
+        plume.segments
+          .map((segment) => `<polygon points="${segment.points}" fill="${mesh.style.trail}" opacity="${segment.alpha}"/>`)
+          .join(""),
+      )
+      .join("") +
+    scene.plumes.map((plume) => `<polygon points="${plume.core}" fill="#fff2d8" opacity="0.7"/>`).join("");
 
   const shield = scene.shield
     .flat()
     .map((seg) => `<polyline points="${seg.points}" fill="none" stroke="rgba(103,232,249,0.5)" stroke-width="1.2"/>`)
     .join("");
+
+  const backdrop =
+    scene.environment === "space"
+      ? `<rect width="${W}" height="${H}" fill="#04060d"/>` +
+        scene.nebula
+          .map(
+            (cloud) =>
+              `<ellipse cx="${cloud.x.toFixed(0)}" cy="${cloud.y.toFixed(0)}" rx="${cloud.rx.toFixed(0)}" ry="${cloud.ry.toFixed(0)}" fill="${cloud.color}" opacity="${cloud.alpha}" transform="rotate(${cloud.rotate.toFixed(0)} ${cloud.x.toFixed(0)} ${cloud.y.toFixed(0)})"/>`,
+          )
+          .join("") +
+        scene.stars
+          .map((star) => `<circle cx="${star.x.toFixed(0)}" cy="${star.y.toFixed(0)}" r="${star.r.toFixed(2)}" fill="#e8f4ff" opacity="${star.alpha.toFixed(2)}"/>`)
+          .join("")
+      : `<rect width="${W}" height="${H}" fill="url(#bg)"/>`;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <defs>
@@ -56,16 +74,12 @@ function svgFor(mesh: ShipMesh, view: ViewState, label: string) {
       <stop offset="0%" stop-color="#0b1a2e"/>
       <stop offset="100%" stop-color="#03050a"/>
     </radialGradient>
-    <linearGradient id="plumeGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#ffd9a0" stop-opacity="0.9"/>
-      <stop offset="100%" stop-color="#ff7a1a" stop-opacity="0"/>
-    </linearGradient>
   </defs>
-  <rect width="${W}" height="${H}" fill="url(#bg)"/>
+  ${backdrop}
   ${deckLines}
   ${shadow}
-  ${faces}
   ${plumes}
+  ${faces}
   ${shield}
   <text x="24" y="40" fill="#67e8f9" font-family="monospace" font-size="18">${label}</text>
   <text x="24" y="62" fill="#94a3b8" font-family="monospace" font-size="12">${mesh.moduleCount} modules · ${scene.faces.length} faces · yaw ${(view.yaw * 57.3).toFixed(0)}° pitch ${(view.pitch * 57.3).toFixed(0)}°</text>
@@ -87,7 +101,7 @@ for (const slug of ["millennium-falcon", "x-wing-t65", "imperial-star-destroyer"
   const blueprint = blueprints.find((b) => b.slug === slug);
   if (!blueprint) continue;
   const build = buildFromBlueprint(blueprint);
-  const mesh = buildShipMesh(build);
+  const mesh = buildShipMesh(build, { style: (blueprint as { style?: string }).style ?? "corvette" });
   const stats = computeStats(build);
   console.log(
     `${blueprint.name}: ${countParts(build)} modules, ${mesh.parts.length} drawn groups, ${mesh.parts.reduce((n, p) => n + p.faces.length, 0)} faces`,

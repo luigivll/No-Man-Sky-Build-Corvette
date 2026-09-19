@@ -28,16 +28,20 @@ npm start
 Extra scripts:
 
 ```bash
+npm run lint           # eslint (flat config, next/core-web-vitals + next/typescript)
 npm run typecheck      # tsc --noEmit
 npm run verify         # headless sanity check: data, generator logic AND the 3D renderer
-npm run render:preview # rasterise test PNGs of the ship renderer (scripts/out/*.png)
+npm run render:preview # rasterise fixed test views (scripts/out/*.png)
+npm run render:gallery # rasterise ALL blueprints in their own hull styles
 ```
 
 > `npm run verify` proves the important stuff without a browser: every iconic
 > blueprint compiles into a **legal** Corvette (all Workshop minimums met, under
 > the 160-module cap), seeds are deterministic, salvage-first mode really cuts the
-> vendor bill, combat hulls out-gun minimalist ones, and every blueprint and
-> palette renders inside the viewport at a frame rate that stays smooth to orbit.
+> vendor bill, combat hulls out-gun minimalist ones, every blueprint renders inside
+> the viewport at a frame rate that stays smooth to orbit, and **no module floats**:
+> every part is socketed to a parent and the verifier asserts the join gap is
+> 0.000 units across all 20 blueprints and all 6 hull families.
 
 ---
 
@@ -56,13 +60,17 @@ diagram:
   camera presets (Hero / Starboard / Plan / Bow / Stern), or let the **turntable**
   spin it.
 * Hover any module to see **which part you are looking at**.
-* Pick one of six **hull paints** (Gunmetal, Ivory, Crimson, Emerald, Cobalt,
-  Desert) to preview a colour scheme.
+* Pick one of six **hull families** — **Standard Corvette**, **Sentinel
+  Interceptor**, **Solar Sail**, **Exotic Royal**, **Pirate Raider** and **Living
+  Ship** — to change plating, trim, engine glow, trail colour and background in one
+  click. Tap a second family to **fuse** them into a hybrid hull.
 * Flip the toggle to the **blueprint projection** at any time for the technical
   top-down diagram.
 
-**Engine exhaust is rendered as flame**, and a shield envelope is drawn whenever
-the build carries a shield generator.
+**Engine exhaust is rendered as a layered trail** (halo, glow, hot core, fading
+with distance), and a shield envelope is drawn tight around the hull whenever the
+build carries a shield generator. Space-family hulls get a starfield and nebula;
+hangar-family hulls sit on a lit deck with a contact shadow.
 
 The renderer is a compact software 3D pipeline written in `src/lib/render3d.ts` —
 no WebGL, no 3D library, no external assets:
@@ -74,7 +82,18 @@ no WebGL, no 3D library, no external assets:
    square tile grid with alternating orientation, so hab-heavy builds grow into a
    saucer/slab hull instead of a corridor, with a spanning deck plate tying the
    cluster into one ship
-3. faces are shaded with ambient + diffuse + rim + specular lighting, then sorted
+3. **every module carries sockets** (fore / aft / side / top / bottom / hardpoint /
+   mount). A part claims a free socket on the part it is being bolted to, and the
+   attachment transform rotates its local frame onto the socket normal, so wings
+   grow out of the flank, weapons sit on the wing hardpoints they are given, and
+   engines line up on the stern grid. The renderer records the resulting
+   parent-socket pair and its **gap** for every module, which is what `npm run
+   verify` asserts is ~0
+4. hull **style flourishes** (Sentinel engine rings, blade wings, solar sails,
+   dorsal fins, pirate spikes, organic veins) are generated from the same hull
+   bounds and rooted inside the plating, so they can never float free either
+5. faces are shaded with ambient + diffuse (with a fill light so near-black
+   Sentinel plating still reads) + rim + specular lighting, then sorted
    back-to-front (painter's algorithm) and projected as SVG polygons
 
 Every module in the picker and the Parts Codex also gets its own small render, so
@@ -101,6 +120,17 @@ Every module you place updates in real time:
 Toggle role filters — **Combat**, **Exploration**, **Massive/Freighter-lite**,
 **Minimalist** — plus hull size, salvage-first sourcing and symmetry lock.
 
+**Sentinel mode** is a one-click preset that forces a corrupted-plating hull: blade
+foils instead of wings, ion batteries instead of photon cannons, hover pads instead
+of legs, shield reactors, and the black/crimson/ring-engine look from the game. It
+names the ship the way Sentinels label their own hardware ("Quadium Pattern S-5266").
+
+**Hull fusion**: pick two of the six families and the generator blends them — the
+emissive trim, hot trim and engine trail are mixed, the flourish sets are unioned,
+and the module weighting follows both families at once (sentinel + exotic pulls
+blades, foils and oversized boosters). Fusion is seeded, so a shared link reproduces
+the identical hull.
+
 Role logic is deliberate, not cosmetic:
 * **Combat** hard-locks a Deadeye Cannon + High-Energy Shield, pushes 3-6 hardpoints and 2+ shield generators
 * **Exploration** forces the Zenith-Class reactor (best warp range) and adds Hab/Walkway slots while capping weapons
@@ -114,9 +144,16 @@ procedural name ("The Void Leviathan", "MSV Warhammer M-5427") plus a written
 rationale for the part choices.
 
 ### 5. Iconic Ship Blueprints — the "Badass Hangar" (`/blueprints`)
-Eleven pre-made blueprint sheets: Millennium Falcon, T-65 X-Wing, Imperial Star
-Destroyer, UNSC Pelican, The Rocinante, USS Enterprise, Serenity, Viper Mk II,
-SSV Normandy SR-2, USCSS Nostromo and Thunderbird 2.
+Twenty pre-made blueprint sheets, each tagged with the hull family it is meant to be
+rendered in:
+
+* **Star Wars** — Millennium Falcon, T-65 X-Wing, Imperial Star Destroyer,
+  Razor Crest, N-1 Starfighter, Delta-7 Aethersprite (Anakin), Eta-2 Actis
+  (Obi-Wan), TIE Interceptor, Firespray Gunship
+* **No Man's Sky** — Sentinel Interceptor and Corrupted Dreadnought, both built in
+  Sentinel plating with ring engines
+* **Sci-fi & superhero** — UNSC Pelican, The Rocinante, USS Enterprise, Serenity,
+  Viper Mk II, SSV Normandy SR-2, USCSS Nostromo, Thunderbird 2 and The Batwing
 
 Each sheet lists every module with quantities and notes, marks optional cosmetic
 parts, prices the vendor-buyable against the salvage-only modules, adds the
@@ -141,7 +178,8 @@ re-renders itself:
 | File | Contents |
 | --- | --- |
 | `data/parts.json` | 50 Corvette modules across 10 categories, with prices, sourcing, rarity, mass, cargo slots and stat weights |
-| `data/blueprints.json` | The 11 pop-culture recipes, referencing part ids from `parts.json` |
+| `data/blueprints.json` | The 20 pop-culture recipes, each with a `style` (hull family) and part refs from `parts.json` |
+| `src/lib/shipStyles.ts` | The six hull families: plating, trim, trail, environment, flourish set and module preferences |
 
 `data/parts.json` also carries game rules used throughout the UI: the 160-module
 cap, the 100-module soft cap, the 3-floor height recommendation, the 11 reactor
@@ -169,7 +207,8 @@ data/
   blueprints.json         # pop-culture ship recipes
 scripts/
   verify-logic.ts         # headless data + generator + renderer tests (npm run verify)
-  render-preview.ts       # writes test PNGs to scripts/out (npm run render:preview)
+  render-preview.ts       # writes fixed test views to scripts/out (npm run render:preview)
+  style-gallery.ts        # renders every blueprint in its hull style (npm run render:gallery)
 src/
   app/
     layout.tsx            # shell: fonts, navbar, footer, build context
@@ -194,8 +233,9 @@ src/
     Navbar.tsx / Footer.tsx / ui.tsx / Icon.tsx
   lib/
     build.ts              # build math: stats, costs, requirements, markdown export
-    randomizer.ts         # role weighting, sizing, guarantees
-    render3d.ts           # software 3D renderer: geometry, lighting, projection
+    randomizer.ts         # role weighting, sizing, guarantees, sentinel mode + fusion
+    shipStyles.ts         # the six hull families, fusion blending, hull paints
+    render3d.ts           # software 3D renderer: sockets, geometry, lighting, projection
     schematic.ts          # hull layout geometry (blueprint view)
     names.ts              # seeded RNG + procedural ship names
     data.ts / types.ts    # typed access to the JSON databases
@@ -207,5 +247,8 @@ src/
   so no network access is needed at build or run time.
 * The dev server binds to `0.0.0.0` when started with `next dev -H 0.0.0.0`, and
   `next.config.ts` allows the sandbox/preview origins.
+* Every module is socketed to the part it is bolted to; the verifier fails the
+  build if any attachment gap exceeds 0.02 units, which is what keeps wings, guns
+  and engines from floating next to the hull.
 * This is an unofficial fan tool. No Man's Sky is a trademark of Hello Games Ltd;
   pop-culture ship names belong to their respective rights holders.

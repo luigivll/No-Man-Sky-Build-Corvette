@@ -8,13 +8,8 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import {
-  HULL_PALETTES,
-  buildShipMesh,
-  projectScene,
-  type ShipMesh,
-  type ViewState,
-} from "@/lib/render3d";
+import { buildShipMesh, projectScene, type ShipMesh, type ViewState } from "@/lib/render3d";
+import { HULL_PAINTS, SHIP_STYLES } from "@/lib/shipStyles";
 import { countParts } from "@/lib/build";
 import type { Build } from "@/lib/types";
 import { Icon } from "./Icon";
@@ -33,17 +28,20 @@ export default function ShipPreview3D({
   height = 460,
   compact = false,
   showControls = true,
-  palette,
-  onPaletteChange,
+  style,
+  onStyleChange,
   initialView = "hero",
+  showStylePicker = true,
 }: {
   build: Build;
   height?: number;
   compact?: boolean;
   showControls?: boolean;
-  palette?: string;
-  onPaletteChange?: (id: string) => void;
+  /** ship family id, or a fused combination like "sentinel+exotic" */
+  style?: string;
+  onStyleChange?: (id: string) => void;
   initialView?: string;
+  showStylePicker?: boolean;
 }) {
   const [view, setView] = useState<ViewState>(
     VIEW_PRESETS.find((p) => p.id === initialView)?.view ?? VIEW_PRESETS[0].view,
@@ -51,22 +49,22 @@ export default function ShipPreview3D({
   const [spinning, setSpinning] = useState(false);
   const [hovered, setHovered] = useState<{ name: string; category: string } | null>(null);
   const [size, setSize] = useState({ width: 900, height });
-  const [localPalette, setLocalPalette] = useState(palette ?? HULL_PALETTES[0].id);
+  const [localStyle, setLocalStyle] = useState(style ?? "corvette");
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ x: number; y: number; yaw: number; pitch: number } | null>(null);
   const pendingRef = useRef<{ yaw: number; pitch: number } | null>(null);
   const frameRef = useRef<number | null>(null);
   const [grabbing, setGrabbing] = useState(false);
 
-  const activePalette = palette ?? localPalette;
+  const activeStyle = style ?? localStyle;
   const moduleCount = countParts(build);
 
-  const setPalette = useCallback(
+  const setStyle = useCallback(
     (id: string) => {
-      setLocalPalette(id);
-      onPaletteChange?.(id);
+      setLocalStyle(id);
+      onStyleChange?.(id);
     },
-    [onPaletteChange],
+    [onStyleChange],
   );
 
   // measure the container so the SVG always fills it
@@ -96,13 +94,13 @@ export default function ShipPreview3D({
   }, [spinning]);
 
   const mesh: ShipMesh = useMemo(
-    () => buildShipMesh(build, { palette: activePalette }),
-    [build, activePalette],
+    () => buildShipMesh(build, { style: activeStyle }),
+    [build, activeStyle],
   );
 
   const scene = useMemo(
-    () => projectScene(mesh, view, size.width, size.height, { padding: 1.24 }),
-    [mesh, view, size.width, size.height],
+    () => projectScene(mesh, view, size.width, size.height, { padding: compact ? 1.34 : 1.42 }),
+    [mesh, view, size.width, size.height, compact],
   );
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -164,8 +162,9 @@ export default function ShipPreview3D({
     );
   }
 
-  const showShield = mesh.shieldRings.length > 0;
+  const showShield = mesh.hasShield;
   const interactiveHover = !compact && moduleCount <= 60;
+  void HULL_PAINTS;
 
   return (
     <div
@@ -207,7 +206,36 @@ export default function ShipPreview3D({
             </radialGradient>
           </defs>
 
-          <rect width={size.width} height={size.height} fill="url(#sp-ambient)" />
+          {scene.environment === "space" ? (
+            <>
+              <rect width={size.width} height={size.height} fill="#04060d" />
+              {scene.nebula.map((cloud, index) => (
+                <ellipse
+                  key={`nebula-${index}`}
+                  cx={cloud.x}
+                  cy={cloud.y}
+                  rx={cloud.rx}
+                  ry={cloud.ry}
+                  fill={cloud.color}
+                  opacity={cloud.alpha}
+                  transform={`rotate(${cloud.rotate} ${cloud.x} ${cloud.y})`}
+                  style={{ filter: "blur(26px)" }}
+                />
+              ))}
+              {scene.stars.map((star, index) => (
+                <circle
+                  key={`star-${index}`}
+                  cx={star.x}
+                  cy={star.y}
+                  r={star.r}
+                  fill="#e8f4ff"
+                  opacity={star.alpha}
+                />
+              ))}
+            </>
+          ) : (
+            <rect width={size.width} height={size.height} fill="url(#sp-ambient)" />
+          )}
 
           {/* hangar deck */}
           <g>
@@ -232,41 +260,54 @@ export default function ShipPreview3D({
             />
           ) : null}
 
-          {/* ship: shaded polygons sorted back-to-front */}
+          {/* engine trails sit behind the ship so they never cover the hull */}
           <g>
-            {scene.faces.map((face, index) => (
-              <polygon
-                key={`face-${index}`}
-                points={face.points}
-                fill={face.fill}
-                opacity={face.opacity}
-                stroke="rgba(3,6,12,0.5)"
-                strokeWidth={0.35}
-                onMouseEnter={
-                  interactiveHover
-                    ? () => setHovered({ name: face.partName, category: face.category })
-                    : undefined
-                }
-                onMouseLeave={interactiveHover ? () => setHovered(null) : undefined}
-              />
+            {scene.plumes.map((plume, index) => (
+              <g key={`trail-${index}`}>
+                {plume.segments.map((segment, segIndex) => (
+                  <polygon
+                    key={segIndex}
+                    points={segment.points}
+                    fill={mesh.style.trail}
+                    opacity={segment.alpha}
+                  />
+                ))}
+              </g>
             ))}
           </g>
 
-          {/* engine exhaust: soft outer flame + hot core */}
+          {/* ship: shaded polygons sorted back-to-front */}
+          <g>
+            {scene.faces.map((face, index) => {
+              const glowing = face.kind === "emissive" || face.kind === "trim";
+              return (
+                <polygon
+                  key={`face-${index}`}
+                  points={face.points}
+                  fill={face.fill}
+                  opacity={face.opacity}
+                  stroke={glowing ? face.fill : "rgba(3,6,12,0.45)"}
+                  strokeWidth={glowing ? 2.2 : 0.3}
+                  strokeOpacity={glowing ? 0.45 : 1}
+                  onMouseEnter={
+                    interactiveHover
+                      ? () =>
+                          setHovered({
+                            name: face.flourish ? `${face.flourish.replace(/-/g, " ")} (style trim)` : face.partName,
+                            category: face.category,
+                          })
+                      : undefined
+                  }
+                  onMouseLeave={interactiveHover ? () => setHovered(null) : undefined}
+                />
+              );
+            })}
+          </g>
+
+          {/* hot cores: only the first stretch, drawn over the nozzle mouth */}
           <g>
             {scene.plumes.map((plume, index) => (
-              <g key={`plume-${index}`}>
-                <polygon
-                  points={plume.points}
-                  fill={plume.fill}
-                  opacity={plume.opacity}
-                />
-                <polygon
-                  points={plume.core}
-                  fill="#ffe9c7"
-                  opacity={plume.coreOpacity}
-                />
-              </g>
+              <polygon key={`core-${index}`} points={plume.core} fill="#fff2d8" opacity={0.7} />
             ))}
           </g>
 
@@ -278,8 +319,8 @@ export default function ShipPreview3D({
                   key={`shield-${index}`}
                   points={segment.points}
                   fill="none"
-                  stroke="rgba(103,232,249,0.42)"
-                  strokeWidth={1}
+                  stroke="rgba(103,232,249,0.22)"
+                  strokeWidth={0.9}
                 />
               ))}
             </g>
@@ -293,11 +334,15 @@ export default function ShipPreview3D({
           {compact ? "Hull render" : "Live hull render"}
         </span>
         <span className="hud-mono text-[0.68rem] text-cyan-200">
-          {moduleCount} MODULES · {mesh.parts.reduce((n, p) => n + p.faces.length, 0)} FACES
+          {moduleCount} MODULES ·{" "}
+          {mesh.parts.reduce((n, p) => n + p.faces.length, 0)} FACES
+        </span>
+        <span className="hud-mono block text-[0.6rem] uppercase tracking-wider" style={{ color: mesh.style.emissive }}>
+          {mesh.style.label}
         </span>
       </div>
 
-      {hovered && interactiveHover ? (
+      {hovered && interactiveHover && !showStylePicker ? (
         <div className="pointer-events-none absolute right-3 top-3 max-w-[220px] border border-cyan-400/30 bg-void-950/85 px-2.5 py-1.5 text-right">
           <span className="hud-label block">Module</span>
           <span className="text-[0.72rem] text-cyan-100">{hovered.name}</span>
@@ -374,26 +419,47 @@ export default function ShipPreview3D({
         </>
       ) : null}
 
-      {showControls && !compact && onPaletteChange !== undefined ? (
-        <div className="absolute right-3 top-1/2 flex -translate-y-1/2 flex-col gap-1.5">
-          {HULL_PALETTES.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              title={option.label}
-              aria-label={`Paint ${option.label}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                setPalette(option.id);
-              }}
-              className={`h-6 w-6 border transition ${
-                activePalette === option.id
-                  ? "scale-110 border-cyan-300"
-                  : "border-white/20 hover:border-white/50"
-              }`}
-              style={{ background: option.swatch }}
-            />
-          ))}
+      {showControls && !compact && showStylePicker ? (
+        <div className="absolute right-2 top-2 flex max-w-[190px] flex-col gap-1">
+          <span className="hud-label text-right">Hull style</span>
+          {SHIP_STYLES.map((shipStyle) => {
+            const active = activeStyle.split("+").includes(shipStyle.id);
+            return (
+              <button
+                key={shipStyle.id}
+                type="button"
+                title={shipStyle.blurb}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  // clicking a second family fuses it with the current one
+                  const current = activeStyle.split("+").filter(Boolean);
+                  let next: string[];
+                  if (current.includes(shipStyle.id)) {
+                    next = current.length > 1 ? current.filter((id) => id !== shipStyle.id) : current;
+                  } else {
+                    next = current.length >= 2 ? [current[current.length - 1], shipStyle.id] : [...current, shipStyle.id];
+                  }
+                  setStyle(next.join("+"));
+                }}
+                className={`flex items-center gap-2 border px-2 py-1 text-left transition ${
+                  active ? "border-cyan-300/70 bg-white/10" : "border-white/12 hover:border-white/35"
+                }`}
+              >
+                <span
+                  className="h-3.5 w-3.5 shrink-0 border border-black/40"
+                  style={{
+                    background: `linear-gradient(135deg, ${shipStyle.hullBase} 0 55%, ${shipStyle.emissive} 55% 100%)`,
+                  }}
+                />
+                <span className="truncate font-mono text-[0.6rem] uppercase tracking-wider text-slate-300">
+                  {shipStyle.label}
+                </span>
+              </button>
+            );
+          })}
+          <span className="text-right text-[0.55rem] uppercase tracking-wider text-slate-500">
+            {activeStyle.split("+").length > 1 ? "fusion active" : "tap 2nd to fuse"}
+          </span>
         </div>
       ) : null}
 

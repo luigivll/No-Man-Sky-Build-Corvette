@@ -287,9 +287,10 @@ export default function BlueprintSheet({ blueprint }: { blueprint: Blueprint }) 
         <div className="space-y-4">
           <ShipViewPanel
             build={build}
-            height={360}
+            height={380}
             title="Projected silhouette"
             subtitle={`How the ${blueprint.name} module list reads as a finished ship.`}
+            styleOverride={blueprint.style}
           />
 
           <Panel className="overflow-hidden">

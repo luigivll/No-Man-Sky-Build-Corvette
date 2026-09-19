@@ -10,12 +10,14 @@ import {
 import type { Build, BuildSlots, Part, PartCategoryId, RoleId } from "./types";
 import {
   generateDesignation,
+  generateSentinelName,
   generateShipName,
   intBetween,
   mulberry32,
   pickWeighted,
   type Rng,
 } from "./names";
+import { SHIP_STYLES, fuseStyles } from "./shipStyles";
 
 export interface RoleDef {
   id: RoleId;
@@ -102,6 +104,70 @@ export interface GeneratorOptions {
   salvageOnly: boolean;
   symmetry: boolean;
   seed: number;
+  /** hull family ids; two or more fuses them into one hybrid hull */
+  hullStyles?: string[];
+  /** Sentinel mode: forces corrupted-plating module picks (blades, rings, no legs) */
+  sentinel?: boolean;
+}
+
+/**
+ * The module picks that make a Corvette read as Sentinel hardware: blade foils
+ * instead of wings, ion batteries instead of photon cannons, hover pads instead
+ * of legs, and the shield/reactor pair that keeps it alive.
+ */
+const SENTINEL_PREFERRED = new Set([
+  "cockpit-thunderbird",
+  "hab-thunderbird",
+  "walkway-thunderbird",
+  "bay-internal",
+  "bay-thunderbird",
+  "wing-arcadia-sfoil",
+  "wing-titan",
+  "wing-hardframe",
+  "wing-firebox",
+  "weapon-infraknife",
+  "weapon-cyclotron",
+  "weapon-deadeye",
+  "shield-aeron",
+  "shield-defencefield",
+  "reactor-ceto",
+  "engine-main-arcadia",
+  "engine-light-arcadia",
+  "gear-magfield",
+  "gear-thunderbird",
+  "gear-heavy",
+]);
+
+/** Module picks that sell a fused exotic/solar hull: foils, rings, big engines. */
+const EXOTIC_PREFERRED = new Set([
+  "cockpit-titan",
+  "wing-arcadia-sfoil",
+  "wing-osprey",
+  "wing-speedbird",
+  "engine-light-arcadia",
+  "engine-main-arcadia",
+  "shield-aeron",
+  "reactor-azimuth",
+]);
+
+export function resolveHullStyles(options: GeneratorOptions): string[] {
+  if (options.sentinel && (!options.hullStyles || options.hullStyles.length === 0)) {
+    return ["sentinel"];
+  }
+  const ids = (options.hullStyles ?? []).filter((id) => SHIP_STYLES.some((s) => s.id === id));
+  if (ids.length === 0) {
+    // nothing chosen: pick deterministically from the seed so a shared link
+    // always renders the same hull
+    const rng = mulberry32(options.seed || 1);
+    const first = SHIP_STYLES[Math.floor(rng() * SHIP_STYLES.length)].id;
+    return options.roles.includes("combat") ? [first] : [first];
+  }
+  return ids;
+}
+
+export function styleForOptions(options: GeneratorOptions) {
+  const ids = resolveHullStyles(options);
+  return ids.length > 1 ? fuseStyles(ids, options.seed) : (SHIP_STYLES.find((s) => s.id === ids[0]) ?? SHIP_STYLES[0]);
 }
 
 interface Plan {
@@ -191,7 +257,12 @@ export function fitScore(part: Part, role: RoleId): number {
   }
 }
 
-function weightFor(part: Part, roles: RoleId[], salvageOnly: boolean): number {
+function weightFor(
+  part: Part,
+  roles: RoleId[],
+  salvageOnly: boolean,
+  styles: string[] = [],
+): number {
   let weight = 1;
   if (roles.length === 0) {
     weight = 1 + part.stats.damage * 0.05 + part.stats.shield * 0.05;
@@ -202,6 +273,11 @@ function weightFor(part: Part, roles: RoleId[], salvageOnly: boolean): number {
     }
   }
   if (salvageOnly && !part.buyable) weight *= 2.2;
+  if (styles.includes("sentinel")) weight *= SENTINEL_PREFERRED.has(part.id) ? 2.4 : 0.55;
+  if (styles.includes("exotic") || styles.includes("solar")) {
+    weight *= EXOTIC_PREFERRED.has(part.id) ? 1.6 : 1;
+  }
+  if (styles.includes("pirate")) weight *= part.buyable ? 0.85 : 1.15;
   return Math.max(0.05, weight);
 }
 
@@ -227,7 +303,10 @@ interface Allocation {
 }
 
 function choose(rng: Rng, pool: Part[], options: GeneratorOptions): Part {
-  return pickWeighted(rng, pool, (part) => weightFor(part, options.roles, options.salvageOnly));
+  const styles = resolveHullStyles(options);
+  return pickWeighted(rng, pool, (part) =>
+    weightFor(part, options.roles, options.salvageOnly, styles),
+  );
 }
 
 function push(slots: BuildSlots, category: PartCategoryId, id: string) {
@@ -376,13 +455,17 @@ export function generateBuild(options: GeneratorOptions): GeneratedBuild {
     }
   }
 
+  const hullStyles = resolveHullStyles(options);
   const build = createBuild({
-    name: generateShipName(rng, roles),
-    designation: generateDesignation(rng, roles),
+    name: options.sentinel ? generateSentinelName(rng) : generateShipName(rng, roles),
+    designation: options.sentinel
+      ? "Corrupted Pattern Hull"
+      : generateDesignation(rng, roles),
     slots,
     roles,
     origin: "randomizer",
     seed: options.seed,
+    styleIds: hullStyles,
   });
 
   const stats = computeStats(build);
@@ -396,6 +479,21 @@ export function generateBuild(options: GeneratorOptions): GeneratedBuild {
   if (roles.length > 0) {
     rationale.push(
       `Role weighting: ${roles.map((r) => roleById[r].label).join(" + ")}`,
+    );
+  }
+  const hullStyle = styleForOptions(options);
+  if (hullStyles.length > 1) {
+    rationale.push(
+      `Hull fusion: ${hullStyles
+        .map((id) => SHIP_STYLES.find((s) => s.id === id)?.label ?? id)
+        .join(" + ")} blended into one plating scheme (${hullStyle.label})`,
+    );
+  } else {
+    rationale.push(`Hull family: ${hullStyle.label} - ${hullStyle.blurb}`);
+  }
+  if (options.sentinel) {
+    rationale.push(
+      "Sentinel doctrine: blade foils, ion batteries, shield reactors and hover pads - black corrupted plating with ring engines",
     );
   }
   if (options.salvageOnly) {
@@ -425,6 +523,8 @@ export function buildGeneratorUrl(options: GeneratorOptions): string {
   });
   if (options.salvageOnly) params.set("salvage", "1");
   if (options.symmetry) params.set("symmetry", "1");
+  if (options.sentinel) params.set("sentinel", "1");
+  if (options.hullStyles?.length) params.set("style", options.hullStyles.join("+"));
   return `/randomizer?${params.toString()}`;
 }
 

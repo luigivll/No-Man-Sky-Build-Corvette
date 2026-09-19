@@ -4,7 +4,7 @@ import { useState } from "react";
 import HullSchematic from "./HullSchematic";
 import ShipPreview3D from "./ShipPreview3D";
 import { Icon } from "./Icon";
-import { HULL_PALETTES } from "@/lib/render3d";
+import { SHIP_STYLES } from "@/lib/shipStyles";
 import type { Build } from "@/lib/types";
 
 type ViewMode = "ship" | "blueprint";
@@ -21,6 +21,7 @@ export default function ShipViewPanel({
   defaultMode = "ship",
   showPalette = true,
   headerRight,
+  styleOverride,
 }: {
   build: Build;
   height?: number;
@@ -29,9 +30,13 @@ export default function ShipViewPanel({
   defaultMode?: ViewMode;
   showPalette?: boolean;
   headerRight?: React.ReactNode;
+  /** hull family (or "a+b" fusion) that overrides the panel's own picker */
+  styleOverride?: string;
 }) {
   const [mode, setMode] = useState<ViewMode>(defaultMode);
-  const [palette, setPalette] = useState(HULL_PALETTES[0].id);
+  const [shipStyle, setShipStyle] = useState("corvette");
+  const showStylePicker = showPalette && !styleOverride;
+  const activeStyle = styleOverride ?? shipStyle;
 
   return (
     <section className="panel overflow-hidden">
@@ -47,7 +52,7 @@ export default function ShipViewPanel({
             <p className="text-xs text-slate-400">
               {subtitle ??
                 (mode === "ship"
-                  ? "Lit 3D render of the assembled Corvette"
+                  ? "Assembled ship render · modules snap to real sockets"
                   : "Technical blueprint projection")}
             </p>
           </div>
@@ -55,6 +60,12 @@ export default function ShipViewPanel({
 
         <div className="flex items-center gap-2">
           {headerRight}
+          {mode === "ship" && showStylePicker ? (
+            <span className="hidden font-mono text-[0.6rem] uppercase tracking-wider text-slate-500 lg:block">
+              {SHIP_STYLES.find((style) => style.id === activeStyle)?.label ??
+                (activeStyle.toUpperCase().includes("+") ? "FUSED HULL" : activeStyle)}
+            </span>
+          ) : null}
           <div className="flex items-center gap-1">
             {(
               [
@@ -84,8 +95,9 @@ export default function ShipViewPanel({
         <ShipPreview3D
           build={build}
           height={height}
-          palette={showPalette ? palette : undefined}
-          onPaletteChange={showPalette ? setPalette : undefined}
+          style={activeStyle}
+          onStyleChange={setShipStyle}
+          showStylePicker={showPalette}
         />
       ) : (
         <HullSchematic build={build} height={height} />

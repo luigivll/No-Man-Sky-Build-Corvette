@@ -53,6 +53,7 @@ export function createBuild(partial: Partial<Build> = {}): Build {
     seed: partial.seed,
     designation: partial.designation,
     rationale: partial.rationale,
+    styleIds: partial.styleIds,
   };
 }
 

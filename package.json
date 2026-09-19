@@ -2,15 +2,16 @@
   "name": "nms-corvette-shipyard",
   "version": "1.0.0",
   "private": true,
-  "description": "NMS Corvette Shipyard — builder, randomizer and pop-culture blueprint companion for No Man's Sky (Voyagers update).",
+  "description": "NMS Corvette Shipyard \u2014 builder, randomizer and pop-culture blueprint companion for No Man's Sky (Voyagers update).",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "verify": "tsx scripts/verify-logic.ts",
-    "render:preview": "tsx scripts/render-preview.ts"
+    "render:preview": "tsx scripts/render-preview.ts",
+    "render:gallery": "tsx scripts/style-gallery.ts"
   },
   "dependencies": {
     "@fontsource/jetbrains-mono": "^5.3.0",
@@ -27,6 +28,8 @@
     "@types/node": "^22.20.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.5",
     "postcss": "^8.5.28",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.13",

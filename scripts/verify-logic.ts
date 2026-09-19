@@ -11,7 +11,8 @@
  *  - every iconic blueprint compiles into a legal build with real part ids
  */
 import { buildFromBlueprint, computeStats, costBreakdown, countParts, expandParts, isSpaceworthy, requirementStatus, inventorySlots } from "../src/lib/build";
-import { HULL_PALETTES, buildPartMesh, buildShipMesh, projectScene, DEFAULT_VIEW } from "../src/lib/render3d";
+import { buildPartMesh, buildShipMesh, projectScene, DEFAULT_VIEW } from "../src/lib/render3d";
+import { SHIP_STYLES, fuseStyles } from "../src/lib/shipStyles";
 import { blueprints, categories, meta, parts } from "../src/lib/data";
 import { ROLE_DEFS, generateBuild, type GeneratorOptions } from "../src/lib/randomizer";
 import type { RoleId } from "../src/lib/types";
@@ -187,19 +188,25 @@ console.log(`\n== 3D ship renderer ==`);
         minY = Math.min(minY, y); maxY = Math.max(maxY, y);
       }
     }
-    for (const plume of scene.plumes) {
-      for (const pair of plume.points.split(" ")) {
-        const [x, y] = pair.split(",").map(Number);
-        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-        minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-      }
-    }
-
+    // engine trails are intentionally long and run off-frame, so only the
+    // hull + style flourishes are checked for framing
+    const fillsFrame = (maxX - minX) / canvasW > 0.55 && (maxY - minY) / canvasH > 0.4;
     const inFrame = minX >= -2 && maxX <= canvasW + 2 && minY >= -2 && maxY <= canvasH + 2;
+    const trailsRunAft = scene.plumes.every((plume) => {
+      const xs = plume.core.split(" ").map((pair) => Number(pair.split(",")[0]));
+      const ys = plume.core.split(" ").map((pair) => Number(pair.split(",")[1]));
+      return xs.every((x) => Number.isFinite(x)) && ys.every((y) => Number.isFinite(y));
+    });
     check(
       `${blueprint.name.padEnd(26)} ${String(faceCount).padStart(4)} faces  x[${minX.toFixed(0)},${maxX.toFixed(0)}] y[${minY.toFixed(0)},${maxY.toFixed(0)}]`,
-      bad === 0 && faceCount > 100 && inFrame,
-      bad > 0 ? `${bad} non-finite points` : "geometry clipped outside the viewport",
+      bad === 0 && faceCount > 100 && inFrame && fillsFrame && trailsRunAft,
+      bad > 0
+        ? `${bad} non-finite points`
+        : !inFrame
+          ? "hull clipped outside the viewport"
+          : !fillsFrame
+            ? "ship too small in frame"
+            : "engine trail has non-finite points",
     );
   }
 
@@ -211,19 +218,88 @@ console.log(`\n== 3D ship renderer ==`);
   // every module must have its own portrait geometry
   let portraitFailures = 0;
   for (const part of parts) {
-    const mesh = buildPartMesh(part);
+    const mesh = buildPartMesh(part, { style: "corvette" });
     const faces = mesh.parts[0]?.faces.length ?? 0;
     if (faces < 2) portraitFailures += 1;
   }
   check(`all ${parts.length} modules have portrait geometry`, portraitFailures === 0, `${portraitFailures} too simple`);
 
-  // palettes must all produce valid colours
-  const paletteOk = HULL_PALETTES.every((p) => /^#[0-9a-f]{6}$/i.test(p.base));
-  check(`all ${HULL_PALETTES.length} hull palettes are valid hex colours`, paletteOk);
+  // every ship family must render, and every module must CONNECT to something
+  for (const style of SHIP_STYLES) {
+    const build = buildFromBlueprint(blueprints[0]);
+    const mesh = buildShipMesh(build, { style: style.id });
+    const gaps = mesh.attachments.map((a) => a.gap);
+    const worst = gaps.length ? Math.max(...gaps) : 0;
+    const unconnected = mesh.attachments.length === 0;
+    check(
+      `${style.label.padEnd(20)} ${String(mesh.parts.length).padStart(3)} parts  ${String(mesh.attachments.length).padStart(3)} joins  max gap ${worst.toFixed(3)}u`,
+      !unconnected && worst < 0.02,
+      unconnected ? "nothing attached to the hull" : "a module is floating away from its socket",
+    );
+  }
+
+  // no floating parts: every module in every blueprint must be socketed
+  for (const blueprint of blueprints) {
+    const build = buildFromBlueprint(blueprint);
+    const mesh = buildShipMesh(build, { style: "sentinel" });
+    const worst = mesh.attachments.length ? Math.max(...mesh.attachments.map((a) => a.gap)) : 999;
+    check(
+      `no floating parts: ${blueprint.name.padEnd(26)} ${String(mesh.attachments.length).padStart(3)} socket joins`,
+      mesh.attachments.length > 0 && worst < 0.02,
+      `worst gap ${worst.toFixed(3)}u`,
+    );
+  }
+
+  // --- Sentinel doctrine + hull fusion ---------------------------------
+  const sentinelBuild = generateBuild({
+    roles: ["combat"],
+    size: "standard",
+    salvageOnly: false,
+    symmetry: true,
+    seed: 4242,
+    sentinel: true,
+    hullStyles: ["sentinel"],
+  });
+  const sentinelPicks = Object.values(sentinelBuild.slots).flat() as string[];
+  const corruptPicks = sentinelPicks.filter(
+    (id) => id.includes("sfoil") || id.includes("hardframe") || id.includes("arcadia") || id.includes("thunderbird") || id.includes("magfield"),
+  ).length;
+  check(
+    `sentinel mode biases module picks (${corruptPicks}/${sentinelPicks.length} corrupted-pattern hardware, ${sentinelBuild.name})`,
+    sentinelBuild.styleIds?.[0] === "sentinel" && corruptPicks / sentinelPicks.length > 0.25,
+    "sentinel doctrine did not change the loadout",
+  );
+
+  const fusionOptions: GeneratorOptions = {
+    roles: ["combat"],
+    size: "standard",
+    salvageOnly: false,
+    symmetry: true,
+    seed: 99,
+    hullStyles: ["sentinel", "exotic"],
+  };
+  const fusionA = generateBuild(fusionOptions);
+  const fusionB = generateBuild(fusionOptions);
+  const styleA = buildShipMesh(fusionA, { style: (fusionA.styleIds ?? []).join("+") });
+  const styleB = buildShipMesh(fusionB, { style: (fusionB.styleIds ?? []).join("+") });
+  check(
+    `fused hull is deterministic (${styleA.style.label}, ${styleA.parts.length} parts, ${styleA.parts.reduce((n, p) => n + p.faces.length, 0)} faces)`,
+    JSON.stringify(fusionA.slots) === JSON.stringify(fusionB.slots) &&
+      styleA.style.emissive === styleB.style.emissive,
+    "same seed produced a different fusion",
+  );
+  const blended = fuseStyles(["sentinel", "exotic"], 7);
+  check(
+    `fusion blends two palettes (${blended.emissive} vs ${fuseStyles(["sentinel"], 7).emissive})`,
+    blended.emissive !== fuseStyles(["sentinel"], 7).emissive &&
+      blended.emissive !== fuseStyles(["exotic"], 7).emissive &&
+      blended.flourishes.length >= 2,
+    "fusion returned one of the parents unchanged",
+  );
 
   // a maximum-size hull still renders (performance guard)
   const maxBuild = generateBuild({ roles: ["massive"], size: "heavy", salvageOnly: false, symmetry: true, seed: 4242 });
-  const maxMesh = buildShipMesh(maxBuild);
+  const maxMesh = buildShipMesh(maxBuild, { style: "sentinel" });
   const maxFaces = maxMesh.parts.reduce((n, part) => n + part.faces.length, 0);
   const t0 = Date.now();
   for (let i = 0; i < 12; i += 1) {

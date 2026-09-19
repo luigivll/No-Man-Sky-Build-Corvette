@@ -111,6 +111,8 @@ export interface Blueprint {
   signatureLine: string;
   parts: BlueprintPartRef[];
   buildTips: string[];
+  /** hull family this ship is meant to be rendered in (sentinel, solar, ...) */
+  style?: string;
 }
 
 export interface BlueprintsFile {
@@ -138,6 +140,8 @@ export interface Build {
   seed?: number;
   designation?: string;
   rationale?: string[];
+  /** hull family ids; more than one means a fused hull */
+  styleIds?: string[];
 }
 
 export interface StatTotals {

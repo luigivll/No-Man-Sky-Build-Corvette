@@ -1,29 +1,67 @@
 /**
- * render3d.ts — a tiny software 3D renderer good enough to preview a Corvette.
+ * render3d.ts — software 3D renderer for Corvette previews.
  *
- * Pipeline:
- *   build -> world-space mesh (primitives per module, oriented via its geometry)
- *   mesh  -> rotate + perspective project
- *   faces -> shaded by view-space normal (ambient + diffuse + rim + spec)
- *   sorted back-to-front (painter's algorithm) for SVG output
+ * Design goals (in order):
+ *  1. Modules must CONNECT. Every module exposes mount sockets; the layout
+ *     engine mates child sockets onto parent sockets, so nothing floats and
+ *     wings/engines/guns sit exactly where the Workshop would snap them.
+ *  2. It should look like the game: dark plating, emissive trim, glowing
+ *     engines, long engine trails and a proper space backdrop.
  *
- * Conventions:  +X starboard, +Y up, +Z aft (the nose points at -Z).
+ * Pipeline: build -> spec (faces + sockets) -> attach -> world mesh -> rotate,
+ * light, sort back-to-front, project to 2D polygons.
+ *
+ * Conventions: +X starboard, +Y up, +Z aft (the nose points at -Z).
  */
 
-import { categoryById, partById } from "./data";
+import { categoryById } from "./data";
 import { expandParts } from "./build";
+import { styleById, type FlourishId, type ShipStyle } from "./shipStyles";
 import type { Build, Part, PartCategoryId } from "./types";
 
 export type V3 = [number, number, number];
+/** Row-major 3x3 */
+export type Mat3 = [number, number, number, number, number, number, number, number, number];
 
-export type FaceKind = "hull" | "dark" | "emissive" | "glass" | "panel" | "engine" | "glassDark";
+export const IDENTITY: Mat3 = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+
+export type FaceKind =
+  | "hull"
+  | "dark"
+  | "light"
+  | "emissive"
+  | "glass"
+  | "panel"
+  | "trim"
+  | "sail";
 
 export interface Face3D {
   pts: V3[];
-  /** base colour as [r,g,b] so shading stays cheap */
   rgb: [number, number, number];
   kind: FaceKind;
   opacity?: number;
+}
+
+export interface Socket {
+  id: string;
+  local: V3;
+  /** outward direction of the mating face */
+  dir: V3;
+  kind:
+    | "fore"
+    | "aft"
+    | "sideL"
+    | "sideR"
+    | "top"
+    | "bottom"
+    | "hardpoint"
+    | "root"
+    | "mount";
+}
+
+export interface ModuleSpec {
+  faces: Face3D[];
+  sockets: Socket[];
 }
 
 export interface PartMesh {
@@ -35,51 +73,149 @@ export interface PartMesh {
 
 export interface PlumeSpec {
   origin: V3;
+  /** aft direction the trail fires along */
+  dir: V3;
   radius: number;
   length: number;
   rgb: [number, number, number];
+  ring?: { radius: number; rgb: [number, number, number] };
+}
+
+export interface AttachmentRecord {
+  child: string;
+  parent: string;
+  socket: string;
+  /** distance between mating sockets; must be ~0 for a legal fit */
+  gap: number;
 }
 
 export interface ShipMesh {
   parts: PartMesh[];
-  /** decorative scene geometry */
-  shieldRings: V3[][];
   plumes: PlumeSpec[];
   bounds: { min: V3; max: V3 };
   groundY: number;
   moduleCount: number;
+  style: ShipStyle;
+  attachments: AttachmentRecord[];
+  /** scene dressing generated from the style */
+  flourishes: { kind: FlourishId; faces: Face3D[] }[];
+  hasShield: boolean;
 }
 
 /* ------------------------------------------------------------------ */
-/* math                                                                */
+/* math                                                               */
 /* ------------------------------------------------------------------ */
 
 const sub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const add = (a: V3, b: V3): V3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const mul = (v: V3, k: number): V3 => [v[0] * k, v[1] * k, v[2] * k];
+const neg = (v: V3): V3 => [-v[0], -v[1], -v[2]];
 const cross = (a: V3, b: V3): V3 => [
   a[1] * b[2] - a[2] * b[1],
   a[2] * b[0] - a[0] * b[2],
   a[0] * b[1] - a[1] * b[0],
 ];
 const dot = (a: V3, b: V3): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const normalise = (v: V3): V3 => {
-  const l = Math.hypot(v[0], v[1], v[2]) || 1;
+const len = (v: V3): number => Math.hypot(v[0], v[1], v[2]);
+const norm = (v: V3): V3 => {
+  const l = len(v) || 1;
   return [v[0] / l, v[1] / l, v[2] / l];
 };
 
+function matApply(m: Mat3, v: V3): V3 {
+  return [
+    m[0] * v[0] + m[1] * v[1] + m[2] * v[2],
+    m[3] * v[0] + m[4] * v[1] + m[5] * v[2],
+    m[6] * v[0] + m[7] * v[1] + m[8] * v[2],
+  ];
+}
+
+function matMul(a: Mat3, b: Mat3): Mat3 {
+  const out = new Array(9).fill(0) as number[];
+  for (let r = 0; r < 3; r += 1) {
+    for (let c = 0; c < 3; c += 1) {
+      out[r * 3 + c] = a[r * 3] * b[c] + a[r * 3 + 1] * b[3 + c] + a[r * 3 + 2] * b[6 + c];
+    }
+  }
+  return out as Mat3;
+}
+
+function fromAxisAngle(axis: V3, angle: number): Mat3 {
+  const [x, y, z] = norm(axis);
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  const t = 1 - c;
+  return [
+    t * x * x + c,
+    t * x * y - s * z,
+    t * x * z + s * y,
+    t * x * y + s * z,
+    t * y * y + c,
+    t * y * z - s * x,
+    t * x * z - s * y,
+    t * y * z + s * x,
+    t * z * z + c,
+  ];
+}
+
+/** Shortest-arc rotation taking `from` onto `to`. */
+function rotationBetween(from: V3, to: V3): Mat3 {
+  const a = norm(from);
+  const b = norm(to);
+  const d = Math.max(-1, Math.min(1, dot(a, b)));
+  if (d > 0.999999) return IDENTITY;
+  if (d < -0.999999) {
+    // 180 degrees: pick any perpendicular axis
+    const helper: V3 = Math.abs(a[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0];
+    return fromAxisAngle(norm(cross(a, helper)), Math.PI);
+  }
+  const axis = cross(a, b);
+  return fromAxisAngle(axis, Math.acos(d));
+}
+
+interface Transform {
+  pos?: V3;
+  rot?: Mat3;
+  scale?: V3;
+}
+
+function transformFaces(faces: Face3D[], t: Transform): Face3D[] {
+  const rot = t.rot ?? IDENTITY;
+  const s = t.scale ?? [1, 1, 1];
+  const pos = t.pos ?? [0, 0, 0];
+  return faces.map((face) => ({
+    ...face,
+    pts: face.pts.map((p) => {
+      const scaled: V3 = [p[0] * s[0], p[1] * s[1], p[2] * s[2]];
+      return add(matApply(rot, scaled), pos);
+    }),
+  }));
+}
+
+/**
+ * Mirroring flips face winding, which would flip the shading normals.
+ * Re-point every face away from the solid's centre.
+ */
+function orientOutward(faces: Face3D[], centre: V3): Face3D[] {
+  return faces.map((face) => {
+    const c: V3 = [
+      (face.pts[0][0] + face.pts[1][0] + face.pts[2][0] + (face.pts[3]?.[0] ?? face.pts[0][0])) / 4,
+      (face.pts[0][1] + face.pts[1][1] + face.pts[2][1] + (face.pts[3]?.[1] ?? face.pts[0][1])) / 4,
+      (face.pts[0][2] + face.pts[1][2] + face.pts[2][2] + (face.pts[3]?.[2] ?? face.pts[0][2])) / 4,
+    ];
+    const n = norm(cross(sub(face.pts[1], face.pts[0]), sub(face.pts[2], face.pts[0])));
+    return dot(n, sub(c, centre)) >= 0 ? face : { ...face, pts: [...face.pts].reverse() };
+  });
+}
+
 export function hexToRgb(hex: string): [number, number, number] {
   const clean = hex.replace("#", "");
-  const full =
-    clean.length === 3
-      ? clean
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : clean;
+  const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
   const n = parseInt(full, 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-function mix(a: [number, number, number], b: [number, number, number], t: number): [number, number, number] {
+function mixRgb(a: [number, number, number], b: [number, number, number], t: number): [number, number, number] {
   return [
     Math.round(a[0] + (b[0] - a[0]) * t),
     Math.round(a[1] + (b[1] - a[1]) * t),
@@ -99,15 +235,11 @@ export const rgbCss = (rgb: [number, number, number], alpha = 1): string =>
   alpha >= 1 ? `rgb(${rgb[0]},${rgb[1]},${rgb[2]})` : `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`;
 
 /* ------------------------------------------------------------------ */
-/* primitives (local space, centred on origin)                         */
+/* primitives                                                         */
 /* ------------------------------------------------------------------ */
 
-type Corners8 = [V3, V3, V3, V3, V3, V3, V3, V3]; // bottom 4 (CCW seen from above), top 4 matching
+type Corners8 = [V3, V3, V3, V3, V3, V3, V3, V3];
 
-/**
- * Build the 6 quads of a hexahedron. Normals are oriented outward from the
- * solid's own centroid, so we never need consistent winding from callers.
- */
 function hexahedron(c: Corners8, rgb: [number, number, number], kind: FaceKind): Face3D[] {
   const centre: V3 = [
     (c[0][0] + c[2][0] + c[4][0] + c[6][0]) / 4,
@@ -115,15 +247,15 @@ function hexahedron(c: Corners8, rgb: [number, number, number], kind: FaceKind):
     (c[0][2] + c[2][2] + c[4][2] + c[6][2]) / 4,
   ];
   const quads: V3[][] = [
-    [c[0], c[1], c[2], c[3]], // bottom
-    [c[4], c[5], c[6], c[7]], // top
-    [c[0], c[1], c[5], c[4]], // front (-Z)
-    [c[2], c[3], c[7], c[6]], // rear (+Z)
-    [c[0], c[3], c[7], c[4]], // -X
-    [c[1], c[2], c[6], c[5]], // +X
+    [c[0], c[1], c[2], c[3]],
+    [c[4], c[5], c[6], c[7]],
+    [c[0], c[1], c[5], c[4]],
+    [c[2], c[3], c[7], c[6]],
+    [c[0], c[3], c[7], c[4]],
+    [c[1], c[2], c[6], c[5]],
   ];
   return quads.map((pts) => {
-    const n = normalise(cross(sub(pts[1], pts[0]), sub(pts[2], pts[0])));
+    const n = norm(cross(sub(pts[1], pts[0]), sub(pts[2], pts[0])));
     const mid: V3 = [
       (pts[0][0] + pts[1][0] + pts[2][0] + pts[3][0]) / 4,
       (pts[0][1] + pts[1][1] + pts[2][1] + pts[3][1]) / 4,
@@ -135,135 +267,129 @@ function hexahedron(c: Corners8, rgb: [number, number, number], kind: FaceKind):
 }
 
 interface BoxOpts {
-  /** scale of the front (-Z) face: 1 = straight, <1 = tapering to a nose */
   taperFrontW?: number;
   taperFrontH?: number;
-  /** scale of the top face, for chunky chamfered hulls */
   taperTopW?: number;
-  /** bevel the nose with a short extra segment (gives a chiselled front) */
-  nose?: number;
+  taperBackW?: number;
   kind?: FaceKind;
 }
 
-/** A box, optionally tapering toward the nose and/or the roof. */
+/** Box centred on the origin: w along X, h along Y, d along Z (-Z = nose). */
 function box(w: number, h: number, d: number, rgb: [number, number, number], opts: BoxOpts = {}): Face3D[] {
-  const tw = (opts.taperTopW ?? 1.0) * w;
-  const twF = tw * (opts.taperFrontW ?? 1);
-  const twB = tw;
-  const bwF = w * (opts.taperFrontW ?? 1);
-  const bwB = w;
+  const fw = (w * (opts.taperFrontW ?? 1)) / 2;
+  const bw = (w * (opts.taperBackW ?? 1)) / 2;
+  const twF = fw * (opts.taperTopW ?? 1);
+  const twB = bw * (opts.taperTopW ?? 1);
   const hh = h / 2;
-  const hd = d / 2;
   const hhF = (h * (opts.taperFrontH ?? 1)) / 2;
-  const bottomFront = bwF / 2;
-  const bottomBack = bwB / 2;
-
+  const hd = d / 2;
   const c: Corners8 = [
-    [-bottomFront, -hhF, -hd], // bottom front left
-    [bottomFront, -hhF, -hd], // bottom front right
-    [bottomBack, -hh, hd], // bottom back right
-    [-bottomBack, -hh, hd], // bottom back left
-    [-twF / 2, hhF, -hd],
-    [twF / 2, hhF, -hd],
-    [twB / 2, hh, hd],
-    [-twB / 2, hh, hd],
+    [-fw, -hhF, -hd],
+    [fw, -hhF, -hd],
+    [bw, -hh, hd],
+    [-bw, -hh, hd],
+    [-twF, hhF, -hd],
+    [twF, hhF, -hd],
+    [twB, hh, hd],
+    [-twB, hh, hd],
   ];
   return hexahedron(c, rgb, opts.kind ?? "hull");
 }
 
-/** Cylinder along the Z axis with optional emissive end caps. */
+/** Cylinder along Z, centred on the origin. */
 function cylinder(
   r: number,
-  len: number,
+  length: number,
   rgb: [number, number, number],
-  opts: { seg?: number; kind?: FaceKind; glowFront?: [number, number, number]; glowBack?: [number, number, number] } = {},
+  opts: { seg?: number; kind?: FaceKind; capFront?: [number, number, number]; capBack?: [number, number, number] } = {},
 ): Face3D[] {
-  const seg = opts.seg ?? 12;
+  const seg = opts.seg ?? 16;
   const faces: Face3D[] = [];
-  const hz = len / 2;
-  const ring = (z: number, radius: number) =>
+  const hz = length / 2;
+  const ring = (z: number, radius: number): V3[] =>
     Array.from({ length: seg }, (_, i) => {
       const a = (i / seg) * Math.PI * 2;
-      return [Math.cos(a) * radius, Math.sin(a) * radius, z] as V3;
+      return [Math.cos(a) * radius, Math.sin(a) * radius, z];
     });
   const front = ring(-hz, r);
   const back = ring(hz, r);
   for (let i = 0; i < seg; i += 1) {
     const j = (i + 1) % seg;
-    faces.push({
-      pts: [front[i], front[j], back[j], back[i]],
-      rgb,
-      kind: opts.kind ?? "hull",
-    });
+    faces.push({ pts: [front[i], front[j], back[j], back[i]], rgb, kind: opts.kind ?? "hull" });
   }
-  if (opts.glowFront) {
-    faces.push({ pts: front, rgb: opts.glowFront, kind: "emissive" });
-  }
-  if (opts.glowBack) {
-    faces.push({ pts: [...back].reverse(), rgb: opts.glowBack, kind: "emissive" });
-  }
+  if (opts.capFront) faces.push({ pts: front, rgb: opts.capFront, kind: "emissive" });
+  if (opts.capBack) faces.push({ pts: [...back].reverse(), rgb: opts.capBack, kind: "emissive" });
   return faces;
 }
 
-/** Cone flaring toward +Z (an engine bell). */
-function cone(
+/** Engine bell: cone flaring toward +Z with a glowing hollow throat. */
+function bell(
   r: number,
-  len: number,
+  length: number,
   rgb: [number, number, number],
-  opts: { seg?: number; glow?: [number, number, number]; hollow?: boolean } = {},
+  glow: [number, number, number],
+  seg = 16,
 ): Face3D[] {
-  const seg = opts.seg ?? 12;
   const faces: Face3D[] = [];
   const apex: V3 = [0, 0, 0];
-  const base = Array.from({ length: seg }, (_, i) => {
+  const base: V3[] = Array.from({ length: seg }, (_, i) => {
     const a = (i / seg) * Math.PI * 2;
-    return [Math.cos(a) * r, Math.sin(a) * r, len] as V3;
+    return [Math.cos(a) * r, Math.sin(a) * r, length];
   });
   for (let i = 0; i < seg; i += 1) {
     const j = (i + 1) % seg;
     faces.push({ pts: [apex, base[i], base[j]], rgb, kind: "hull" });
   }
-  if (opts.hollow) {
-    // dark throat + hot inner disc
-    faces.push({ pts: [...base].reverse(), rgb: opts.glow ?? [255, 150, 60], kind: "emissive" });
-    const inner = base.map((p) => [p[0] * 0.55, p[1] * 0.55, p[2] - 0.05] as V3);
-    faces.push({ pts: [...inner].reverse(), rgb: opts.glow ?? [255, 190, 120], kind: "emissive" });
+  faces.push({ pts: [...base].reverse(), rgb: glow, kind: "emissive" });
+  const inner = base.map((p) => [p[0] * 0.52, p[1] * 0.52, p[2] - 0.04] as V3);
+  faces.push({ pts: [...inner].reverse(), rgb: scaleRgb(glow, 1.1), kind: "emissive" });
+  return faces;
+}
+
+/** Flat annulus (thruster ring) facing +Z. */
+function annulus(
+  rInner: number,
+  rOuter: number,
+  rgb: [number, number, number],
+  opts: { seg?: number; kind?: FaceKind; z?: number } = {},
+): Face3D[] {
+  const seg = opts.seg ?? 18;
+  const faces: Face3D[] = [];
+  const z = opts.z ?? 0;
+  for (let i = 0; i < seg; i += 1) {
+    const a0 = (i / seg) * Math.PI * 2;
+    const a1 = ((i + 1) / seg) * Math.PI * 2;
+    const p = (a: number, r: number): V3 => [Math.cos(a) * r, Math.sin(a) * r, z];
+    faces.push({
+      pts: [p(a0, rInner), p(a1, rInner), p(a1, rOuter), p(a0, rOuter)],
+      rgb,
+      kind: opts.kind ?? "emissive",
+    });
   }
   return faces;
 }
 
-/** Hemisphere dome (bridge pods). */
-function dome(
-  r: number,
-  rgb: [number, number, number],
-  opts: { seg?: number; rings?: number; kind?: FaceKind; opacity?: number } = {},
-): Face3D[] {
-  const seg = opts.seg ?? 12;
+function dome(r: number, rgb: [number, number, number], opts: { seg?: number; rings?: number; kind?: FaceKind } = {}): Face3D[] {
+  const seg = opts.seg ?? 14;
   const rings = opts.rings ?? 3;
   const faces: Face3D[] = [];
   const at = (ri: number, si: number): V3 => {
     const phi = (ri / rings) * (Math.PI / 2);
     const theta = (si / seg) * Math.PI * 2;
-    return [
-      Math.cos(phi) * Math.cos(theta) * r,
-      Math.sin(phi) * r,
-      Math.cos(phi) * Math.sin(theta) * r,
-    ];
+    return [Math.cos(phi) * Math.cos(theta) * r, Math.sin(phi) * r, Math.cos(phi) * Math.sin(theta) * r];
   };
   for (let ri = 0; ri < rings; ri += 1) {
     for (let si = 0; si < seg; si += 1) {
-      faces.push({
-        pts: [at(ri, si), at(ri + 1, si), at(ri + 1, si + 1), at(ri, si + 1)],
-        rgb,
-        kind: opts.kind ?? "hull",
-        opacity: opts.opacity,
-      });
+      faces.push({ pts: [at(ri, si), at(ri + 1, si), at(ri + 1, si + 1), at(ri, si + 1)], rgb, kind: opts.kind ?? "hull" });
     }
   }
   return faces;
 }
 
-/** Extruded aerofoil plate used for wings, fins and stabilisers. */
+/**
+ * Aerofoil plate: root chord at x=0, tip at x=span, with sweep (aft offset)
+ * and dihedral (vertical rise). Used for every wing, fin and stabiliser.
+ */
 function foil(
   span: number,
   chord: number,
@@ -271,581 +397,396 @@ function foil(
   sweep: number,
   dihedral: number,
   rgb: [number, number, number],
-  opts: { taper?: number; kind?: FaceKind } = {},
+  opts: { taper?: number; kind?: FaceKind; twist?: number } = {},
 ): Face3D[] {
   const taper = opts.taper ?? 0.7;
   const tipChord = chord * taper;
-  const cFront = -chord / 2;
-  const cBack = chord / 2;
-  const tFront = -tipChord / 2 + sweep;
-  const tBack = tipChord / 2 + sweep;
   const lift = span * Math.tan(dihedral);
   const ht = thickness / 2;
+  const rootFront = -chord / 2;
+  const rootBack = chord / 2;
+  const tipFront = sweep - tipChord / 2;
+  const tipBack = sweep + tipChord / 2;
 
-  const c: Corners8 = [
-    [0, -ht, cFront],
-    [span, lift - ht * 0.5, tFront],
-    [span, lift + ht * 0.5, tBack],
-    [0, ht, cBack],
-    // bottom face mirror
-    [0, -ht, cBack],
-    [span, lift - ht * 0.5, tBack],
-    [span, lift + ht * 0.5, tFront],
-    [0, ht, cFront],
+  const top: V3[] = [
+    [0, ht, rootFront],
+    [span, lift + ht * 0.4, tipFront],
+    [span, lift + ht * 0.4, tipBack],
+    [0, ht, rootBack],
   ];
-  // build as two wedges so top and bottom surfaces are distinct
-  const top: V3[] = [c[0], c[1], c[2], c[3]];
-  const bottom: V3[] = [c[4], c[5], c[6], c[7]];
-  const faces: Face3D[] = [
+  const bottom: V3[] = [
+    [0, -ht, rootBack],
+    [span, lift - ht * 0.4, tipBack],
+    [span, lift - ht * 0.4, tipFront],
+    [0, -ht, rootFront],
+  ];
+  return [
     { pts: top, rgb, kind: opts.kind ?? "hull" },
-    { pts: [...bottom].reverse(), rgb: scaleRgb(rgb, 0.72), kind: opts.kind ?? "hull" },
-    { pts: [c[0], c[1], c[5], c[4]], rgb: scaleRgb(rgb, 0.82), kind: opts.kind ?? "hull" },
-    { pts: [c[3], c[2], c[6], c[7]], rgb: scaleRgb(rgb, 0.82), kind: opts.kind ?? "hull" },
-    { pts: [c[1], c[2], c[6], c[5]], rgb: scaleRgb(rgb, 0.9), kind: opts.kind ?? "hull" },
+    { pts: bottom, rgb: scaleRgb(rgb, 0.7), kind: opts.kind ?? "hull" },
+    { pts: [[0, ht, rootFront], [span, lift + ht * 0.4, tipFront], [span, lift - ht * 0.4, tipFront], [0, -ht, rootFront]], rgb: scaleRgb(rgb, 0.82), kind: opts.kind ?? "hull" },
+    { pts: [[0, ht, rootBack], [span, lift + ht * 0.4, tipBack], [span, lift - ht * 0.4, tipBack], [0, -ht, rootBack]], rgb: scaleRgb(rgb, 0.82), kind: opts.kind ?? "hull" },
+    { pts: [[span, lift + ht * 0.4, tipFront], [span, lift + ht * 0.4, tipBack], [span, lift - ht * 0.4, tipBack], [span, lift - ht * 0.4, tipFront]], rgb: scaleRgb(rgb, 0.9), kind: opts.kind ?? "hull" },
   ];
-  return faces;
 }
 
-/** Thin panel / plating tile. */
-function panel(
-  w: number,
-  h: number,
-  d: number,
-  rgb: [number, number, number],
-  kind: FaceKind = "panel",
-): Face3D[] {
+/** Thin emissive strip used for trim, veins and plating lights. */
+function strip(w: number, h: number, d: number, rgb: [number, number, number], kind: FaceKind = "trim"): Face3D[] {
   return box(w, h, d, rgb, { kind });
 }
 
 /* ------------------------------------------------------------------ */
-/* transforms                                                          */
+/* module specs: geometry + sockets                                   */
 /* ------------------------------------------------------------------ */
 
-interface Placement {
-  pos?: V3;
-  rotX?: number;
-  rotY?: number;
-  rotZ?: number;
-  scale?: number | V3;
-}
-
-function transformFaces(faces: Face3D[], p: Placement): Face3D[] {
-  const pos = p.pos ?? ([0, 0, 0] as V3);
-  const s = p.scale ?? 1;
-  const sx = typeof s === "number" ? s : s[0];
-  const sy = typeof s === "number" ? s : s[1];
-  const sz = typeof s === "number" ? s : s[2];
-  const rx = p.rotX ?? 0;
-  const ry = p.rotY ?? 0;
-  const rz = p.rotZ ?? 0;
-  const cx = Math.cos(rx), sxr = Math.sin(rx);
-  const cy = Math.cos(ry), syr = Math.sin(ry);
-  const cz = Math.cos(rz), szr = Math.sin(rz);
-
-  const apply = (v: V3): V3 => {
-    let [x, y, z] = [v[0] * sx, v[1] * sy, v[2] * sz];
-    // X rotation
-    let y1 = y * cx - z * sxr;
-    let z1 = y * sxr + z * cx;
-    // Y rotation
-    let x1 = x * cy - z1 * syr;
-    const z2 = x * syr + z1 * cy;
-    // Z rotation
-    const x2 = x1 * cz - y1 * szr;
-    const y2 = x1 * szr + y1 * cz;
-    x1 = x2;
-    y1 = y2;
-    return [x1 + pos[0], y1 + pos[1], z2 + pos[2]];
-  };
-
-  return faces.map((f) => ({ ...f, pts: f.pts.map(apply) }));
-}
-
-/* ------------------------------------------------------------------ */
-/* view + projection                                                   */
-/* ------------------------------------------------------------------ */
-
-export interface ViewState {
-  /** radians, rotation about the vertical axis */
-  yaw: number;
-  /** radians, negative looks down from above */
-  pitch: number;
-  zoom: number;
-}
-
-export const DEFAULT_VIEW: ViewState = { yaw: -0.62, pitch: -0.34, zoom: 1 };
-
-function rotateView(v: V3, view: ViewState): V3 {
-  const cy = Math.cos(view.yaw), sy = Math.sin(view.yaw);
-  const x1 = v[0] * cy - v[2] * sy;
-  const z1 = v[0] * sy + v[2] * cy;
-  const cp = Math.cos(view.pitch), sp = Math.sin(view.pitch);
-  const y2 = v[1] * cp - z1 * sp;
-  const z2 = v[1] * sp + z1 * cp;
-  return [x1, y2, z2];
-}
-
-export interface ProjectedFace {
-  partId: string;
-  partName: string;
-  category: PartCategoryId;
-  points: string;
-  fill: string;
-  opacity: number;
-  kind: FaceKind;
-  depth: number;
-}
-
-export interface ProjectedScene {
-  faces: ProjectedFace[];
-  shield: { points: string; depth: number }[][];
-  plumes: { points: string; fill: string; opacity: number; core: string; coreOpacity: number }[];
-  deck: string[];
-  shadow: { cx: number; cy: number; rx: number; ry: number } | null;
-  bounds: { width: number; height: number; scale: number; offsetX: number; offsetY: number };
-  camera: { x: number; y: number; z: number };
-}
-
-const LIGHT: V3 = normalise([-0.42, 0.74, -0.52]);
-const FOCAL = 26;
-
-/**
- * Project the whole scene into 2D. The returned polygons are already sorted
- * back-to-front and shaded, ready to be dropped into an SVG.
- */
-export function projectScene(
-  mesh: ShipMesh,
-  view: ViewState,
-  width: number,
-  height: number,
-  opts: { highlightPartId?: string | null; padding?: number } = {},
-): ProjectedScene {
-  const finite = (n: number, fallback = 0) => (Number.isFinite(n) ? n : fallback);
-  const min: V3 = [
-    finite(mesh.bounds.min[0], -1),
-    finite(mesh.bounds.min[1], -1),
-    finite(mesh.bounds.min[2], -1.6),
-  ];
-  const max: V3 = [
-    finite(mesh.bounds.max[0], 1),
-    finite(mesh.bounds.max[1], 1),
-    finite(mesh.bounds.max[2], 1.6),
-  ];
-  const centre: V3 = [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2];
-
-  // ---- pass 1: rotate everything into view space and measure it ---------
-  const rotated = mesh.parts.map((part) =>
-    part.faces.map((face) => face.pts.map((p) => rotateView(p, view))),
-  );
-
-  let vMinX = Infinity;
-  let vMaxX = -Infinity;
-  let vMinY = Infinity;
-  let vMaxY = -Infinity;
-  const include = (p: V3) => {
-    if (p[0] < vMinX) vMinX = p[0];
-    if (p[0] > vMaxX) vMaxX = p[0];
-    if (p[1] < vMinY) vMinY = p[1];
-    if (p[1] > vMaxY) vMaxY = p[1];
-  };
-  for (const partFaces of rotated) {
-    for (const face of partFaces) {
-      for (const p of face) include(p);
-    }
-  }
-  // engine plumes are drawn outside the hull, so they must count toward framing
-  for (const plume of mesh.plumes) {
-    const tip: V3 = [plume.origin[0], plume.origin[1], plume.origin[2] + plume.length];
-    include(rotateView(plume.origin, view));
-    include(rotateView(tip, view));
-    include(rotateView([plume.origin[0] - plume.radius, plume.origin[1], plume.origin[2]], view));
-    include(rotateView([plume.origin[0] + plume.radius, plume.origin[1], plume.origin[2]], view));
-  }
-  if (!Number.isFinite(vMinX)) {
-    vMinX = -1;
-    vMaxX = 1;
-    vMinY = -1;
-    vMaxY = 1;
-  }
-
-  const pad = opts.padding ?? 1.22;
-  const spanX = Math.max(0.001, vMaxX - vMinX);
-  const spanY = Math.max(0.001, vMaxY - vMinY);
-  const scale = Math.min(width / (spanX * pad), height / (spanY * pad));
-  const viewCentreX = (vMinX + vMaxX) / 2;
-  const viewCentreY = (vMinY + vMaxY) / 2;
-  const cam = rotateView(centre, view);
-  const depthCentre = (cam[2] ?? 0) as number;
-
-  const projectRotated = (r: V3) => {
-    const depth = r[2] - depthCentre;
-    const persp = FOCAL / (FOCAL + depth * 0.5);
-    return {
-      x: width / 2 + (r[0] - viewCentreX) * scale * persp,
-      y: height / 2 - (r[1] - viewCentreY) * scale * persp,
-      z: depth,
-    };
-  };
-  const project = (v: V3) => projectRotated(rotateView(v, view));
-
-  const shade = (rgb: [number, number, number], pts: V3[], kind: FaceKind) => {
-    const n = normalise(cross(sub(pts[1], pts[0]), sub(pts[2], pts[0])));
-    const nv = rotateView(n, view);
-    const diffuse = Math.max(0, dot(nv, LIGHT));
-    const lum = 0.3 + 0.98 * diffuse;
-    const rim = Math.pow(1 - Math.min(1, Math.abs(nv[2])), 3) * 0.2;
-    const viewDir: V3 = normalise([LIGHT[0], LIGHT[1], LIGHT[2] - 1]);
-    const spec = Math.pow(Math.max(0, dot(nv, viewDir)), 22) * 0.5;
-
-    let out = scaleRgb(rgb, lum);
-    out = mix(out, [125, 226, 255], rim);
-    out = mix(out, [255, 255, 255], spec);
-
-    if (kind === "emissive") out = scaleRgb(out, 1.35);
-    if (kind === "glass") out = mix(out, [10, 20, 32], 0.3);
-    if (kind === "dark") out = scaleRgb(out, 0.75);
-    return rgbCss(out);
-  };
-
-  const out: ProjectedFace[] = [];
-  mesh.parts.forEach((part, partIndex) => {
-    part.faces.forEach((face, faceIndex) => {
-      const rotatedPts = rotated[partIndex][faceIndex];
-      const projected = rotatedPts.map((r) => projectRotated(r));
-      const depth = projected.reduce((sum, p) => sum + p.z, 0) / projected.length;
-      const points = projected.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
-      out.push({
-        partId: part.partId,
-        partName: part.partName,
-        category: part.category,
-        points,
-        fill: shade(face.rgb, face.pts, face.kind),
-        opacity: face.opacity ?? 1,
-        kind: face.kind,
-        depth,
-      });
-    });
-  });
-
-  out.sort((a, b) => b.depth - a.depth);
-
-  const plumes = mesh.plumes.map((plume) => {
-    const tip: V3 = [plume.origin[0], plume.origin[1], plume.origin[2] + plume.length];
-    const p0 = project(plume.origin);
-    const p1 = project(tip);
-    // spread perpendicular to the projected exhaust direction, so flames
-    // point out of the nozzles instead of sideways
-    const dx = p1.x - p0.x;
-    const dy = p1.y - p0.y;
-    const len = Math.hypot(dx, dy) || 1;
-    const nx = -dy / len;
-    const ny = dx / len;
-    const w0 = Math.max(2.2, plume.radius * scale * 0.42);
-    const w1 = w0 * 0.42;
-    const pts = [
-      `${(p0.x + nx * w0).toFixed(1)},${(p0.y + ny * w0).toFixed(1)}`,
-      `${(p1.x + nx * w1).toFixed(1)},${(p1.y + ny * w1).toFixed(1)}`,
-      `${(p1.x - nx * w1).toFixed(1)},${(p1.y - ny * w1).toFixed(1)}`,
-      `${(p0.x - nx * w0).toFixed(1)},${(p0.y - ny * w0).toFixed(1)}`,
-    ].join(" ");
-    const c0 = w0 * 0.44;
-    const c1 = w1 * 0.4;
-    const core = [
-      `${(p0.x + nx * c0).toFixed(1)},${(p0.y + ny * c0).toFixed(1)}`,
-      `${(p1.x + nx * c1).toFixed(1)},${(p1.y + ny * c1).toFixed(1)}`,
-      `${(p1.x - nx * c1).toFixed(1)},${(p1.y - ny * c1).toFixed(1)}`,
-      `${(p0.x - nx * c0).toFixed(1)},${(p0.y - ny * c0).toFixed(1)}`,
-    ].join(" ");
-    return {
-      points: pts,
-      fill: rgbCss(plume.rgb),
-      opacity: 0.34,
-      core,
-      coreOpacity: 0.7,
-    };
-  });
-
-  const shield = mesh.shieldRings.map((ring) =>
-    ring.map((v, index) => {
-      const p = project(v);
-      const next = project(ring[(index + 1) % ring.length]);
-      return {
-        points: `${p.x.toFixed(1)},${p.y.toFixed(1)} ${next.x.toFixed(1)},${next.y.toFixed(1)}`,
-        depth: p.z,
-      };
-    }),
-  );
-
-  // hangar deck grid, sized to the hull footprint
-  const deck: string[] = [];
-  const gy = mesh.groundY;
-  const gx = Math.max(4, (max[0] - min[0]) * 0.85 + 2);
-  const gz = Math.max(4, (max[2] - min[2]) * 0.7 + 2);
-  const steps = 7;
-  for (let i = -steps; i <= steps; i += 1) {
-    const z = (i / steps) * gz;
-    const a = project([-gx, gy, z]);
-    const b = project([gx, gy, z]);
-    deck.push(`${a.x.toFixed(1)},${a.y.toFixed(1)} ${b.x.toFixed(1)},${b.y.toFixed(1)}`);
-    const x = (i / steps) * gx;
-    const c = project([x, gy, -gz]);
-    const d = project([x, gy, gz]);
-    deck.push(`${c.x.toFixed(1)},${c.y.toFixed(1)} ${d.x.toFixed(1)},${d.y.toFixed(1)}`);
-  }
-
-  const shadowPts = [
-    project([min[0] - 0.5, gy, min[2] - 0.5]),
-    project([max[0] + 0.5, gy, min[2] - 0.5]),
-    project([max[0] + 0.5, gy, max[2] + 0.5]),
-    project([min[0] - 0.5, gy, max[2] + 0.5]),
-  ];
-  const sxs = shadowPts.map((p) => p.x);
-  const sys = shadowPts.map((p) => p.y);
-  const shadow = {
-    cx: (Math.min(...sxs) + Math.max(...sxs)) / 2,
-    cy: (Math.min(...sys) + Math.max(...sys)) / 2,
-    rx: (Math.max(...sxs) - Math.min(...sxs)) / 2,
-    ry: Math.max(6, (Math.max(...sys) - Math.min(...sys)) / 2),
-  };
-
-  return {
-    faces: out,
-    shield,
-    plumes,
-    deck,
-    shadow,
-    bounds: { width, height, scale, offsetX: width / 2, offsetY: height / 2 },
-    camera: { x: cam[0], y: cam[1], z: cam[2] },
-  };
-}
-
-/* ------------------------------------------------------------------ */
-/* module -> solid geometry                                            */
-/* ------------------------------------------------------------------ */
-
-interface HullContext {
-  halfWidth: number;
+interface SpecCtx {
+  /** hull pod width, used to keep modules proportional to the hull */
+  podWidth: number;
   halfHeight: number;
+  style: ShipStyle;
   density: "low" | "high";
-  /** base hull colour, so players can preview a paint scheme */
-  hullBase: [number, number, number];
 }
 
-export interface HullPalette {
-  id: string;
-  label: string;
-  base: string;
-  swatch: string;
+interface SpecOpts {
+  legLength?: number;
+  reactorLength?: number;
+  engineScale?: number;
 }
 
-export const HULL_PALETTES: HullPalette[] = [
-  { id: "gunmetal", label: "Gunmetal", base: "#88929f", swatch: "#88929f" },
-  { id: "ivory", label: "Ivory", base: "#c9c6bb", swatch: "#c9c6bb" },
-  { id: "crimson", label: "Crimson", base: "#9c4a44", swatch: "#9c4a44" },
-  { id: "emerald", label: "Emerald", base: "#5c7f6a", swatch: "#5c7f6a" },
-  { id: "cobalt", label: "Cobalt", base: "#4a6180", swatch: "#4a6180" },
-  { id: "sand", label: "Desert", base: "#a89372", swatch: "#a89372" },
-];
-
-export const paletteById = (id: string | undefined): HullPalette =>
-  HULL_PALETTES.find((p) => p.id === id) ?? HULL_PALETTES[0];
-
-function accentOf(category: PartCategoryId): [number, number, number] {
-  return hexToRgb(categoryById[category]?.accent ?? "#38bdf8");
+/** Emissive accent colour for a module in the current style. */
+function glowOf(style: ShipStyle, category: PartCategoryId, scale = 1): [number, number, number] {
+  const base = hexToRgb(style.emissive);
+  const accent = hexToRgb(categoryById[category]?.accent ?? "#38bdf8");
+  return scaleRgb(mixRgb(base, accent, 0.25), scale);
 }
 
-const HULL_BASE: [number, number, number] = [136, 146, 162];
-const HULL_DARK: [number, number, number] = [46, 54, 68];
-const CANOPY: [number, number, number] = [64, 168, 205];
-const WARM: [number, number, number] = [255, 158, 74];
-
-/** Every module is drawn from its own geometry profile so parts look distinct. */
-function moduleFaces(
-  part: Part,
-  ctx: HullContext,
-  opts: { legLength?: number; reactorLength?: number; engineScale?: number } = {},
-): Face3D[] {
-  const accent = accentOf(part.category);
-  const tint = mix(ctx.hullBase, accent, 0.12);
+function moduleSpec(part: Part, ctx: SpecCtx, opts: SpecOpts = {}): ModuleSpec {
+  const { style, podWidth, halfHeight } = ctx;
+  const t = ctx.density === "low" ? 12 : 18;
+  const hull: [number, number, number] = hexToRgb(style.hullBase);
+  const dark: [number, number, number] = hexToRgb(style.hullDark);
+  const glow = glowOf(style, part.category);
   const profile = part.geometry.profile;
-  const seg = ctx.density === "low" ? 8 : 12;
-  const w = ctx.halfWidth * 2;
+  const w = podWidth;
+  const accentTint = mixRgb(hull, hexToRgb(categoryById[part.category]?.accent ?? "#38bdf8"), 0.12);
 
   switch (part.category) {
     case "cockpit": {
       if (profile === "arrowhead") {
-        return [
-          ...box(w * 0.92, ctx.halfHeight * 1.5, 3.0, tint, {
-            taperFrontW: 0.34,
-            taperFrontH: 0.55,
-            taperTopW: 0.86,
-          }),
-          ...panel(w * 0.5, 0.12, 1.0, CANOPY, "glass"),
-        ];
+        const d = 2.6;
+        return {
+          faces: [
+            ...box(w * 1.0, halfHeight * 1.6, d, accentTint, { taperFrontW: 0.3, taperFrontH: 0.5, taperTopW: 0.8 }),
+            ...strip(0.1, 0.06, d * 0.5, glow),
+            ...transformFaces(box(w * 0.42, 0.16, 1.1, hexToRgb(style.emissive).map((c) => c * 0.35) as [number, number, number], { taperFrontW: 0.7, kind: "glass" }), { pos: [0, halfHeight * 0.5, -0.5] }),
+          ],
+          sockets: [
+            { id: "aft", local: [0, 0, d / 2], dir: [0, 0, 1], kind: "aft" },
+            { id: "top", local: [0, halfHeight * 0.8, 0], dir: [0, 1, 0], kind: "top" },
+          ],
+        };
       }
       if (profile === "offset-dome") {
-        const base = box(w * 1.05, ctx.halfHeight * 1.35, 2.4, tint, {
-          taperFrontW: 0.7,
-          taperTopW: 0.9,
-        });
-        const pod = transformFaces(
-          [
-            ...cylinder(0.55, 1.0, tint, { seg, glowFront: CANOPY }),
-            ...dome(0.55, tint, { seg, rings: 2 }),
+        const d = 2.3;
+        const bridgeX = w * 0.3;
+        return {
+          faces: [
+            ...box(w * 1.05, halfHeight * 1.4, d, accentTint, { taperFrontW: 0.72, taperTopW: 0.86 }),
+            ...transformFaces(
+              [
+                ...cylinder(0.42, 0.5, accentTint, { seg: t }),
+                ...transformFaces(dome(0.42, mixRgb(accentTint, glow, 0.25), { seg: t, rings: 3, kind: "glass" }), {
+                  rot: fromAxisAngle([1, 0, 0], Math.PI / 2),
+                  pos: [0, 0, 0.25],
+                }),
+              ],
+              { pos: [bridgeX, halfHeight * 0.75, -0.2] },
+            ),
+            ...transformFaces(strip(w * 0.5, 0.06, 0.9, glow), { pos: [0, halfHeight * 0.55, -0.4] }),
           ],
-          { pos: [w * 0.28, ctx.halfHeight * 0.68, -0.2], rotX: Math.PI / 2 },
-        );
-        return [...base, ...pod, ...panel(w * 0.5, 0.1, 0.9, CANOPY, "glass")];
+          sockets: [
+            { id: "aft", local: [0, 0, d / 2], dir: [0, 0, 1], kind: "aft" },
+            { id: "top", local: [bridgeX, halfHeight * 0.9, -0.2], dir: [0, 1, 0], kind: "top" },
+          ],
+        };
       }
-      // blunt-block (Thunderbird dropship deck)
-      return [
-        ...box(w * 1.1, ctx.halfHeight * 1.8, 2.6, tint, { taperFrontW: 0.8, taperTopW: 0.94 }),
-        ...box(w * 1.05, 0.32, 2.2, scaleRgb(tint, 0.7), { taperFrontW: 0.82 }),
-        ...panel(w * 0.62, 0.13, 1.1, CANOPY, "glass"),
-      ];
+      // blunt-block dropship deck
+      const d = 2.5;
+      return {
+        faces: [
+          ...box(w * 1.12, halfHeight * 1.9, d, accentTint, { taperFrontW: 0.82, taperTopW: 0.92 }),
+          ...box(w * 1.04, 0.26, d * 0.5, dark, { taperFrontW: 0.86 }),
+          ...strip(w * 0.7, 0.06, 1.0, glow),
+          ...transformFaces(box(w * 0.5, 0.2, 1.0, dark, { kind: "glass" }), { pos: [0, halfHeight * 0.75, -0.45] }),
+        ],
+        sockets: [
+          { id: "aft", local: [0, 0, d / 2], dir: [0, 0, 1], kind: "aft" },
+          { id: "top", local: [0, halfHeight * 0.95, 0], dir: [0, 1, 0], kind: "top" },
+        ],
+      };
     }
 
     case "habitation": {
       const isWalkway = part.cargoSlots === 1;
-      const podDepth = w * (isWalkway ? 0.85 : 1.3);
-      if (isWalkway) {
-        return [
-          ...box(w * 0.62, ctx.halfHeight * 1.15, podDepth, tint, { taperTopW: 0.92 }),
-          ...panel(w * 0.5, 0.06, podDepth * 0.8, mix(accent, [255, 255, 255], 0.4), "emissive"),
-        ];
-      }
-      return [
-        ...box(w * 1.02, ctx.halfHeight * 2, podDepth, tint, { taperTopW: 0.88 }),
-        // lit window band on both flanks
-        ...panel(podDepth * 0.7, 0.07, 0.12, mix(accent, [255, 255, 255], 0.4), "emissive"),
-        ...transformFaces(
-          panel(podDepth * 0.7, 0.07, 0.12, mix(accent, [255, 255, 255], 0.4), "emissive"),
-          { pos: [w * 0.52, 0, 0], rotY: Math.PI / 2 },
-        ),
-        ...panel(w * 1.06, 0.12, podDepth * 0.18, scaleRgb(HULL_DARK, 1.15), "panel"),
+      const pw = w * (isWalkway ? 0.66 : 1.0);
+      const ph = halfHeight * (isWalkway ? 1.2 : 2);
+      const pd = w * (isWalkway ? 0.9 : 1.3);
+      const faces: Face3D[] = [
+        ...box(pw, ph, pd, accentTint, { taperTopW: 0.9 }),
+        ...strip(pw * 0.78, 0.05, pd * 0.06, glow),
+        ...transformFaces(strip(pd * 0.62, 0.05, 0.06, glow), { pos: [pw * 0.5, 0, 0], rot: fromAxisAngle([0, 1, 0], Math.PI / 2).map((n) => n) as Mat3 }),
       ];
+      if (!isWalkway) {
+        faces.push(...transformFaces(box(pw * 1.04, 0.1, pd * 0.16, dark), { pos: [0, ph * 0.42, 0] }));
+      }
+      return {
+        faces,
+        sockets: [
+          { id: "sideR", local: [pw / 2, 0, 0], dir: [1, 0, 0], kind: "sideR" },
+          { id: "sideL", local: [-pw / 2, 0, 0], dir: [-1, 0, 0], kind: "sideL" },
+          { id: "fore", local: [0, 0, -pd / 2], dir: [0, 0, -1], kind: "fore" },
+          { id: "aft", local: [0, 0, pd / 2], dir: [0, 0, 1], kind: "aft" },
+          { id: "top", local: [0, ph / 2, 0], dir: [0, 1, 0], kind: "top" },
+          { id: "bottom", local: [0, -ph / 2, 0], dir: [0, -1, 0], kind: "bottom" },
+        ],
+      };
     }
 
     case "reactor": {
-      const radius = 0.34 + part.geometry.span * 0.016;
-      const length = opts.reactorLength ?? 1.15;
-      const glow = mix(accent, [255, 255, 255], 0.25);
-      return [
-        ...cylinder(radius, length, tint, { seg, glowFront: glow, glowBack: glow }),
-        ...cylinder(radius * 1.25, 0.18, scaleRgb(tint, 0.75), { seg: Math.max(8, seg - 4) }),
-      ];
+      const rW = 0.5 + part.geometry.span * 0.02;
+      const length = opts.reactorLength ?? w * 1.05;
+      return {
+        faces: [
+          // wedge housing with recessed glow slots - matches how the Workshop
+          // reactor modules actually sit on the hull deck
+          ...box(rW, rW * 0.72, length, scaleRgb(accentTint, 0.9), {
+            taperTopW: 0.78,
+            taperBackW: 0.86,
+          }),
+          ...box(rW * 1.04, 0.12, length * 0.9, dark),
+          ...transformFaces(strip(rW * 0.5, 0.05, length * 0.86, glow, "trim"), { pos: [0, rW * 0.36, 0] }),
+          ...transformFaces(strip(rW * 0.5, 0.05, length * 0.5, glow, "trim"), { pos: [0, -rW * 0.38, 0] }),
+          ...transformFaces(annulus(rW * 0.24, rW * 0.42, glow, { seg: t }), { pos: [0, rW * 0.2, length / 2 + 0.01] }),
+        ],
+        sockets: [{ id: "mount", local: [0, -rW * 0.36, 0], dir: [0, -1, 0], kind: "mount" }],
+      };
     }
 
     case "access": {
-      const inner = profile === "hidden" ? HULL_DARK : [18, 26, 38];
-      return [
-        ...box(w * 0.86, 0.55, 2.0, tint, { taperTopW: 0.9 }),
-        ...box(w * 0.62, 0.26, 1.5, inner as [number, number, number], { kind: "dark" }),
-        ...panel(w * 0.9, 0.1, 0.35, scaleRgb(accent, 0.85), "emissive"),
-      ];
+      const hidden = profile === "hidden";
+      const pw = w * 0.88;
+      const ph = 0.5;
+      const pd = w * 0.85;
+      const inner: [number, number, number] = hidden ? dark : [12, 14, 18];
+      return {
+        faces: [
+          ...box(pw, ph, pd, accentTint, { taperTopW: 0.92, kind: hidden ? "hull" : "hull" }),
+          ...transformFaces(box(pw * 0.62, 0.22, pd * 0.8, inner, { kind: "dark" }), { pos: [0, -ph * 0.42, 0] }),
+          ...strip(pw * 0.9, 0.05, 0.12, glow),
+        ],
+        sockets: [{ id: "mount", local: [0, ph / 2, 0], dir: [0, 1, 0], kind: "mount" }],
+      };
     }
 
     case "engine-main": {
       const k = opts.engineScale ?? 1;
-      const radius = (0.5 + part.geometry.span * 0.035) * k;
-      return [
-        ...cylinder(radius, 1.3 * k, tint, { seg }),
-        ...cone(radius * 1.2, 0.7 * k, scaleRgb(tint, 0.82), { seg, hollow: true, glow: WARM }),
-        ...cylinder(radius * 0.86, 0.35 * k, scaleRgb(HULL_DARK, 1.15), { seg: Math.max(8, seg - 4) }),
-      ];
+      const r = (0.42 + part.geometry.span * 0.028) * k;
+      const length = w * 1.1 * k;
+      return {
+        faces: [
+          ...cylinder(r, length, accentTint, { seg: t }),
+          ...bell(r * 1.15, length * 0.45, scaleRgb(accentTint, 0.8), glow, t),
+          ...cylinder(r * 0.9, 0.3, dark, { seg: t }),
+          ...transformFaces(annulus(r * 0.95, r * 1.08, dark, { seg: t, kind: "dark" }), { pos: [0, 0, -length / 2] }),
+        ],
+        sockets: [{ id: "mount", local: [0, 0, -length / 2 - 0.12], dir: [0, 0, -1], kind: "mount" }],
+      };
     }
 
     case "engine-light": {
-      const radius = 0.24 + part.geometry.span * 0.02;
-      return [
-        ...cylinder(radius, 0.9, tint, { seg: Math.max(8, seg - 4) }),
-        ...cone(radius * 1.3, 0.5, scaleRgb(tint, 0.8), { seg, hollow: true, glow: WARM }),
-      ];
+      const r = 0.19 + part.geometry.span * 0.016;
+      const length = w * 0.62;
+      return {
+        faces: [
+          ...cylinder(r, length, accentTint, { seg: Math.max(10, t - 4) }),
+          ...bell(r * 1.16, length * 0.5, scaleRgb(accentTint, 0.8), glow, Math.max(10, t - 4)),
+        ],
+        sockets: [{ id: "mount", local: [0, 0, -length / 2 - 0.08], dir: [0, 0, -1], kind: "mount" }],
+      };
     }
 
     case "weapon": {
-      const barrel = profile === "turret" || profile === "emitter-strip" ? 0.9 : 1.5;
-      const r = profile === "turret" ? 0.22 : 0.11;
+      const barrel = profile === "turret" || profile === "emitter-strip" ? 0.85 : 1.45;
+      const r = profile === "turret" ? 0.2 : 0.1;
       const faces: Face3D[] = [
-        ...box(0.44, 0.3, 0.7, scaleRgb(tint, 0.85)),
-        ...cylinder(r, barrel, scaleRgb(tint, 0.7), { seg: 8 }),
+        ...box(0.38, 0.24, 0.62, scaleRgb(accentTint, 0.88)),
+        ...transformFaces(cylinder(r, barrel, scaleRgb(accentTint, 0.7), { seg: 10 }), { pos: [0, 0.06, -barrel / 2 - 0.2] }),
       ];
-      if (profile === "turret" || profile === "blade-emitter") {
-        faces.push(
-          ...cylinder(r * 1.9, 0.22, scaleRgb(HULL_DARK, 1.05), { seg: 8 }),
-          ...cylinder(r * 1.2, 0.06, accent, { seg: 8, kind: "emissive" } as never),
-        );
+      if (profile === "turret" || profile === "blade-emitter" || profile === "rifle") {
+        faces.push(...transformFaces(cylinder(r * 1.7, 0.2, dark, { seg: 10, capFront: glow }), { pos: [0, 0.18, 0] }));
       }
-      return faces;
+      faces.push(...transformFaces(strip(0.3, 0.04, 0.36, glow), { pos: [0, 0.13, 0.05] }));
+      return {
+        faces,
+        sockets: [{ id: "mount", local: [0, -0.12, 0], dir: [0, -1, 0], kind: "mount" }],
+      };
     }
 
     case "shield": {
-      // emitter housing only - the envelope is drawn as scene geometry
-      return [...cylinder(0.3, 0.6, tint, { seg: 8, glowFront: accent, glowBack: accent })];
+      return {
+        faces: [
+          ...cylinder(0.22, 0.5, accentTint, { seg: 12, capFront: glow, capBack: glow }),
+          ...transformFaces(annulus(0.3, 0.42, glow, { seg: 14 }), { pos: [0, 0, 0.26] }),
+        ],
+        sockets: [{ id: "mount", local: [0, -0.22, 0], dir: [0, -1, 0], kind: "mount" }],
+      };
     }
 
     case "landing": {
       const isPad = profile === "pad" || profile === "thruster-pad";
-      const legLen = opts.legLength ?? (isPad ? 0.5 : 1.2);
-      const strut = box(0.22, legLen, 0.26, scaleRgb(tint, 0.92));
+      const legLen = opts.legLength ?? (isPad ? 0.5 : 1.1);
+      const strut = box(0.2, legLen, 0.24, scaleRgb(accentTint, 0.92));
       const foot = isPad
-        ? cylinder(0.36, 0.2, scaleRgb(tint, 0.8), { seg: 10, glowBack: accent })
-        : box(0.62, 0.16, 0.78, scaleRgb(tint, 0.8));
-      const ankle = box(0.3, 0.18, 0.34, scaleRgb(tint, 0.72));
-      return [
-        ...transformFaces(strut, { pos: [0, -legLen / 2, 0], rotZ: 0.14 }),
-        ...transformFaces(ankle, { pos: [0.08, -legLen + 0.06, 0] }),
-        ...transformFaces(foot, { pos: [0.1, -legLen, 0] }),
-      ];
+        ? cylinder(0.32, 0.16, scaleRgb(accentTint, 0.8), { seg: 12, capBack: glow })
+        : box(0.56, 0.14, 0.7, scaleRgb(accentTint, 0.8));
+      return {
+        faces: [
+          ...transformFaces(strut, { pos: [0, -legLen / 2, 0], rot: fromAxisAngle([0, 0, 1], 0.12) }),
+          ...transformFaces(box(0.28, 0.16, 0.32, dark), { pos: [0.05, -legLen + 0.05, 0] }),
+          ...transformFaces(foot, { pos: [0.08, -legLen, 0] }),
+          ...transformFaces(strip(0.26, 0.04, 0.3, glow), { pos: [0.08, -legLen - 0.06, 0] }),
+        ],
+        sockets: [{ id: "mount", local: [0, 0, 0], dir: [0, 1, 0], kind: "mount" }],
+      };
     }
 
     case "wing": {
-      const span = 1.6 + part.geometry.span * 0.16;
-      const chord = 1.1 + part.geometry.span * 0.06;
-      if (profile === "s-foil") {
-        // the X pattern: two foils per side, splayed in a cross
-        return [
-          ...foil(span, chord * 0.85, 0.16, 0.35, 0.42, tint, { taper: 0.55 }),
-          ...transformFaces(foil(span * 0.95, chord * 0.8, 0.15, 0.3, -0.38, tint, { taper: 0.6 }), {
-            pos: [0, -0.35, 0.15],
-          }),
-        ];
-      }
-      if (profile === "box") {
-        return [...foil(span * 0.8, chord * 1.15, 0.34, 0.05, 0.1, tint, { taper: 0.85 })];
-      }
-      if (profile === "pylon") {
-        return [...foil(span, chord, 0.18, 0.15, 0.16, tint, { taper: 0.62 })];
-      }
+      const span = 1.5 + part.geometry.span * 0.15;
+      const chord = 1.0 + part.geometry.span * 0.06;
+
       if (profile === "winglet" || profile === "vent-plate" || profile === "fairing" || profile === "cowling") {
-        const kind: FaceKind = "panel";
-        return [
-          ...panel(0.5 + part.geometry.span * 0.12, 0.42 + part.geometry.span * 0.06, 0.9 + part.geometry.span * 0.1, scaleRgb(tint, 0.95), kind),
-        ];
+        // plating: a slab that slides over the hull flank
+        const depth = 1.1 + part.geometry.span * 0.12;
+        const height = 0.36 + part.geometry.span * 0.05;
+        const thickness = 0.22;
+        return {
+          faces: [
+            ...box(thickness, height, depth, accentTint, { taperTopW: 0.7 }),
+            ...transformFaces(strip(0.03, 0.05, depth * 0.7, glow), { pos: [thickness / 2 + 0.01, height * 0.2, 0] }),
+          ],
+          sockets: [{ id: "mount", local: [-thickness / 2, 0, 0], dir: [-1, 0, 0], kind: "mount" }],
+        };
       }
-      const sweep = profile === "swept" ? 0.5 : profile === "angled" ? 0.3 : 0.15;
-      return [...foil(span, chord, 0.2, sweep, profile === "angled" ? 0.34 : 0.18, tint, { taper: 0.68 })];
+
+      const dihedral =
+        profile === "s-foil" ? 0.42 : profile === "angled" ? 0.3 : profile === "box" ? 0.08 : profile === "swept" ? 0.16 : 0.14;
+      const sweep = profile === "s-foil" ? 0.4 : profile === "swept" ? 0.5 : profile === "box" ? 0.05 : 0.2;
+      const thickness = profile === "box" ? 0.3 : profile === "s-foil" ? 0.14 : 0.18;
+      const taper = profile === "s-foil" ? 0.55 : profile === "box" ? 0.85 : 0.68;
+      const chordUse = profile === "box" ? chord * 1.2 : profile === "s-foil" ? chord * 0.85 : chord;
+
+      const foilFaces = foil(span, chordUse, thickness, sweep, dihedral, accentTint, { taper });
+      const edge: Face3D[] = [
+        // emissive leading-edge light, exactly like the in-game module trim
+        ...transformFaces(strip(0.06, 0.05, chordUse * 0.7, glow), { pos: [span * 0.55, span * Math.tan(dihedral) * 0.55 + thickness * 0.6, sweep * 0.55] }),
+      ];
+
+      return {
+        faces: [...foilFaces, ...edge],
+        sockets: [
+          { id: "root", local: [0, 0, 0], dir: [-1, 0, 0], kind: "root" },
+          { id: "hardpoint-inner", local: [span * 0.55, thickness * 0.6, sweep * 0.25], dir: [0, 1, 0], kind: "hardpoint" },
+          { id: "hardpoint-outer", local: [span * 0.86, thickness * 0.4, sweep * 0.75], dir: [0, 1, 0], kind: "hardpoint" },
+        ],
+      };
     }
 
     default:
-      return [...box(1, 1, 1, tint)];
+      return { faces: [...box(1, 1, 1, accentTint)], sockets: [] };
   }
 }
 
 /* ------------------------------------------------------------------ */
-/* build -> scene                                                      */
+/* socket plumbing                                                    */
 /* ------------------------------------------------------------------ */
 
-/**
- * Assemble the selected modules into a world-space scene.
- * Layout mirrors schematic.ts: landing gear first, then the hull grows
- * outward from a spine of Habitation modules and Walkways.
- */
-export function buildShipMesh(build: Build, opts: { palette?: string } = {}): ShipMesh {
+interface PlacedSocket {
+  id: string;
+  kind: Socket["kind"];
+  pos: V3;
+  dir: V3;
+  owner: string;
+  /** sorted order helper for choosing sockets predictably */
+  order: number;
+  taken: boolean;
+}
+
+function specToWorld(spec: ModuleSpec, transform: Transform): { faces: Face3D[]; sockets: PlacedSocket[] } {
+  const rot = transform.rot ?? IDENTITY;
+  const s = transform.scale ?? [1, 1, 1];
+  const pos = transform.pos ?? [0, 0, 0];
+  const mapPoint = (p: V3): V3 => add(matApply(rot, [p[0] * s[0], p[1] * s[1], p[2] * s[2]]), pos);
+  let faces = spec.faces.map((face) => ({ ...face, pts: face.pts.map(mapPoint) }));
+  // mirrored scales flip winding: restore outward normals
+  if (s[0] * s[1] * s[2] < 0) {
+    const centre: V3 = [pos[0], pos[1], pos[2]];
+    faces = orientOutward(faces, centre);
+  }
+  const sockets: PlacedSocket[] = spec.sockets.map((socket, index) => {
+    const dirScaled: V3 = [socket.dir[0] * s[0], socket.dir[1] * s[1], socket.dir[2] * s[2]];
+    return {
+      id: socket.id,
+      kind: socket.kind,
+      pos: mapPoint(socket.local),
+      dir: norm(matApply(rot, dirScaled)),
+      owner: "",
+      order: index,
+      taken: false,
+    };
+  });
+  return { faces, sockets };
+}
+
+/** Compute the transform that mates `childSocket` onto a parent socket. */
+function attachTransform(
+  spec: ModuleSpec,
+  childSocketId: string,
+  targetPos: V3,
+  targetDir: V3,
+  scale: V3 = [1, 1, 1],
+  twist = 0,
+): { transform: Transform; gap: number } {
+  const socket = spec.sockets.find((s) => s.id === childSocketId) ?? spec.sockets[0];
+  if (!socket) return { transform: { pos: targetPos }, gap: 0 };
+
+  const desiredChildDir: V3 = norm(neg(targetDir));
+  let rot = rotationBetween(socket.dir, desiredChildDir);
+  if (twist !== 0) rot = matMul(fromAxisAngle(desiredChildDir, twist), rot);
+
+  const scaledLocal: V3 = [socket.local[0] * scale[0], socket.local[1] * scale[1], socket.local[2] * scale[2]];
+  const rotated = matApply(rot, scaledLocal);
+  const pos = sub(targetPos, rotated);
+  const placed = add(rotated, pos);
+  return { transform: { pos, rot, scale }, gap: len(sub(placed, targetPos)) };
+}
+
+/* ------------------------------------------------------------------ */
+/* build -> scene                                                     */
+/* ------------------------------------------------------------------ */
+
+export interface BuildMeshOptions {
+  style?: string | ShipStyle;
+}
+
+export function resolveStyle(option: string | ShipStyle | undefined): ShipStyle {
+  if (!option) return styleById("corvette");
+  return typeof option === "string" ? styleById(option) : option;
+}
+
+export function buildShipMesh(build: Build, options: BuildMeshOptions = {}): ShipMesh {
+  const style = resolveStyle(options.style);
   const all = expandParts(build);
   const moduleCount = all.length;
-  const density: "low" | "high" = moduleCount > 55 ? "low" : "high";
-  const hullBase = hexToRgb(paletteById(opts.palette).base);
+  const density: "low" | "high" = moduleCount > 60 ? "low" : "high";
 
   const cockpits = all.filter((p) => p.category === "cockpit");
   const habs = all.filter((p) => p.category === "habitation" && p.cargoSlots === 3);
@@ -860,307 +801,405 @@ export function buildShipMesh(build: Build, opts: { palette?: string } = {}): Sh
   const platings = all.filter((p) => p.category === "wing" && p.geometry.mount === "hull");
   const shields = all.filter((p) => p.category === "shield");
 
+  const podWidth = habs.length > 0 ? 1.15 + Math.max(...habs.map((h) => h.geometry.span)) * 0.1 : 1.5;
+  const halfHeight = 0.46;
+  const ctx: SpecCtx = { podWidth, halfHeight, style, density };
+
   const parts: PartMesh[] = [];
   const plumes: PlumeSpec[] = [];
+  const attachments: AttachmentRecord[] = [];
+  const flourishFaces: { kind: FlourishId; faces: Face3D[] }[] = [];
+
+  /** hull-side and deck sockets, allocated first-come-first-served */
+  const free: PlacedSocket[] = [];
+  let socketSeq = 0;
+  const addSocket = (kind: Socket["kind"], pos: V3, dir: V3, owner: string) => {
+    free.push({ id: `hull-${kind}-${socketSeq}`, kind, pos, dir, owner, order: socketSeq, taken: false });
+    socketSeq += 1;
+  };
+  const claim = (
+    kind: Socket["kind"],
+    pick: (candidates: PlacedSocket[]) => PlacedSocket | undefined,
+  ): PlacedSocket | undefined => {
+    const candidates = free.filter((s) => !s.taken && s.kind === kind);
+    const chosen = pick(candidates);
+    if (chosen) chosen.taken = true;
+    return chosen;
+  };
+
   const push = (part: Part, faces: Face3D[]) => {
     if (faces.length === 0) return;
     parts.push({ partId: part.id, partName: part.name, category: part.category, faces });
   };
 
-  // ---- hull footprint ----------------------------------------------------
-  // Habitation modules are laid out on a widening footprint so a hab-heavy
-  // build grows into a disc/slab hull rather than one long tube. +Z is aft.
-  const habWidth = habs.length > 0 ? 1.2 + Math.max(...habs.map((h) => h.geometry.span)) * 0.1 : 1.5;
-  const halfWidth = habWidth / 2;
-  // Corvette hulls are wide and shallow - keeps hab clusters reading as a
-  // saucer/slab rather than a tower of cubes.
-  const halfHeight = 0.46;
-  const ctx: HullContext = { halfWidth, halfHeight, density, hullBase };
-
-  const cockpitLen = cockpits.length > 0 ? 2.4 : 0;
-  // Tiles are square and alternate 90 degrees, so a hand-placed hull fills a
-  // disc instead of stacking into a corridor.
-  const habLen = habWidth * 1.04;
-
-  // Spiral outward from the centre so hulls grow as discs first and only
-  // then spread sideways - a 3-hab ship should be a saucer, not a corridor.
+  /* ---- 1. hull pods on a spiral footprint -------------------------- */
   const FOOTPRINT: [number, number][] = [
-    [0, 0],
-    [-1, 0],
-    [0, -1],
-    [-1, -1],
-    [1, 0],
-    [1, -1],
-    [0, 1],
-    [-1, 1],
-    [1, 1],
-    [-2, 0],
-    [-2, -1],
-    [2, 0],
-    [2, -1],
-    [-2, 1],
-    [2, 1],
-    [-2, -2],
-    [-1, -2],
-    [0, -2],
-    [1, -2],
-    [2, -2],
+    [0, 0], [-1, 0], [0, -1], [-1, -1], [1, 0], [1, -1], [0, 1], [-1, 1], [1, 1],
+    [-2, 0], [-2, -1], [2, 0], [2, -1], [-2, 1], [2, 1], [-2, -2], [-1, -2], [0, -2], [1, -2], [2, -2],
   ];
-  const stepX = habWidth * 1.0;
-  const stepZ = habLen * 1.0;
+  const stepX = podWidth;
+  const stepZ = podWidth * 1.04;
 
-  const placedHabs: { hab: Part; x: number; z: number; rot: number }[] = habs.map((hab, index) => {
+  const placedHabs = habs.map((hab, index) => {
     const [cx, cz] = FOOTPRINT[index % FOOTPRINT.length];
-    // checkerboard rotation keeps the cluster gap-free and disc-like
-    const rot = ((cx + cz) % 2 === 0 ? 1 : -1) * 0.06 + (Math.abs(cx + cz) % 2 === 1 ? Math.PI / 2 : 0);
-    return { hab, x: cx * stepX, z: cz * stepZ, rot };
+    return {
+      hab,
+      x: cx * stepX,
+      z: cz * stepZ,
+      rot: fromAxisAngle([0, 1, 0], Math.abs(cx + cz) % 2 === 1 ? Math.PI / 2 : 0),
+    };
   });
 
-  const rows = placedHabs.map((h) => h.z);
-  const zFront = rows.length > 0 ? Math.min(...rows) : 0;
-  const zBack = rows.length > 0 ? Math.max(...rows) : 0;
-  const colsX = placedHabs.map((h) => h.x);
-  const xMin = colsX.length > 0 ? Math.min(...colsX) : 0;
-  const xMax = colsX.length > 0 ? Math.max(...colsX) : 0;
-
-  // Hull plates: a thin deck spanning the whole hab cluster turns a pile of
-  // modules into one continuous ship, and gives walkways something to sit on.
-  const podDepthFor = (span: number) => (1.2 + span * 0.1) * 1.3;
-  if (habs.length >= 2) {
-    const plateW = Math.max(1, xMax - xMin) + habWidth * 1.14;
-    const plateD = Math.max(1, zBack - zFront) + podDepthFor(habs[0].geometry.span) * 1.02;
-    const plateX = (xMin + xMax) / 2;
-    const plateZ = (zFront + zBack) / 2;
-    const hullRgb = mix(ctx.hullBase, [0, 0, 0], 0.26);
-    // single tapered slab forms the hull body; pods sit flush inside it
-    push(habs[0], transformFaces(
-      box(plateW, halfHeight * 2, plateD, hullRgb, { taperTopW: 0.88 }),
-      { pos: [plateX, 0, plateZ] },
-    ));
-    // inset dorsal deck so the top reads as structure, not a flat lid
-    push(habs[0], transformFaces(
-      box(plateW * 0.86, 0.1, plateD * 0.88, scaleRgb(hullRgb, 1.12), { taperTopW: 0.94 }),
-      { pos: [plateX, halfHeight + 0.03, plateZ] },
-    ));
-    // spine rail along the centreline
-    push(habs[0], transformFaces(
-      box(plateW * 0.16, 0.14, plateD * 0.98, scaleRgb(hullRgb, 1.2)),
-      { pos: [plateX, halfHeight + 0.09, plateZ] },
-    ));
-  }
-
-  // cockpit sits at the very nose, offset to one side for offset-dome bridges
-  const noseZ = zFront - habLen / 2 - cockpitLen / 2;
-  if (cockpits[0]) {
-    const isOffset = cockpits[0].geometry.profile === "offset-dome";
-    const faces = transformFaces(moduleFaces(cockpits[0], ctx), {
-      pos: [isOffset ? stepX * 0.5 : 0, isOffset ? 0.22 : 0, noseZ],
-    });
-    push(cockpits[0], faces);
-  }
+  const xs = placedHabs.map((h) => h.x);
+  const zs = placedHabs.map((h) => h.z);
+  let xMin = xs.length ? Math.min(...xs) : 0;
+  let xMax = xs.length ? Math.max(...xs) : 0;
+  let zFront = zs.length ? Math.min(...zs) : 0;
+  let zBack = zs.length ? Math.max(...zs) : 0;
+  let hullLen = habs.length * 0;
 
   for (const { hab, x, z, rot } of placedHabs) {
-    push(hab, transformFaces(moduleFaces(hab, ctx), { pos: [x, 0, z], rotY: rot }));
+    const spec = moduleSpec(hab, ctx);
+    const world = specToWorld(spec, { pos: [x, 0, z], rot });
+    push(hab, world.faces);
   }
 
-  // Walkways continue the same spiral aft-ward, so they extend the hull
-  // without turning the silhouette into a pencil.
-  const walkwayLen = 1.5;
-  const walkwaySpanX = stepX * 0.72;
+  const podDepth = podWidth * 1.3;
+  const podHalfDepth = podDepth / 2;
+  // Walkways extend the hull aft on the centreline, so they are part of the body
+  const walkwayLen = podWidth * 0.9;
   let walkwayTailZ = zBack;
   walkways.forEach((walkway, index) => {
     const row = Math.floor(index / 2);
     const col = index % 2;
-    const spread = walkways.length === 1 ? 0 : (col === 0 ? -1 : 1) * walkwaySpanX * 0.85;
-    const z = zBack + habLen / 2 + walkwayLen * (0.55 + row * 0.95);
+    const spread = walkways.length === 1 ? 0 : (col === 0 ? -1 : 1) * podWidth * 0.42;
+    const z = zBack + podHalfDepth + walkwayLen * (0.55 + row * 0.95);
     walkwayTailZ = Math.max(walkwayTailZ, z);
-    push(walkway, transformFaces(moduleFaces(walkway, ctx), { pos: [spread, 0, z] }));
+    const spec = moduleSpec(walkway, ctx);
+    push(walkway, specToWorld(spec, { pos: [spread, 0, z] }).faces);
   });
 
-  const tailZ = walkways.length > 0
-    ? walkwayTailZ + walkwayLen / 2
-    : zBack + habLen / 2;
-  const hullZMin = Math.min(noseZ - cockpitLen / 2, zFront - habLen / 2);
-  const hullZMax = tailZ;
-  const hullMidZ = (hullZMin + hullZMax) / 2;
-  const hullTop = halfHeight;
-  const hullBottom = -halfHeight;
+  const hullFront = zFront - podHalfDepth;
+  const hullBack = walkways.length > 0 ? walkwayTailZ + walkwayLen / 2 : zBack + podHalfDepth;
+  const halfWidth = Math.max(
+    0.75,
+    (xMax - xMin) / 2 + podWidth * 0.58,
+  );
+  const bodyLength = hullBack - hullFront;
 
-  // ---- dorsal reactors ---------------------------------------------------
-  reactors.forEach((reactor, index) => {
-    const t = reactors.length === 1 ? 0.45 : index / (reactors.length - 1);
-    const z = zFront - habLen / 2 + 0.9 + t * Math.max(1, zBack - zFront + habLen - 1.8);
-    const x = reactors.length > 3 ? (index % 2 === 0 ? -halfWidth * 0.5 : halfWidth * 0.5) : 0;
-    push(
-      reactor,
-      transformFaces(moduleFaces(reactor, ctx, { reactorLength: 1.15 }), {
-        pos: [x, hullTop - 0.02, z],
-        rotX: Math.PI / 2,
-      }),
-    );
-  });
+  /* ---- 2. hull slab + deck (dressing that ties pods together) ------- */
+  const hullColour = hexToRgb(style.hullBase);
+  const darkColour = hexToRgb(style.hullDark);
+  const glowColour = hexToRgb(style.emissive);
+  const centreX = (xMin + xMax) / 2;
+  const centreZ = (hullFront + hullBack) / 2;
 
-  // ---- ventral landing bays ---------------------------------------------
-  bays.forEach((bay, index) => {
-    const t = bays.length === 1 ? 0.45 : index / (bays.length - 1);
-    const z = zFront + 0.4 + t * Math.max(1, zBack - zFront - 0.8);
-    push(bay, transformFaces(moduleFaces(bay, ctx), { pos: [0, -halfHeight - 0.22, z] }));
-  });
-
-  // ---- wings -------------------------------------------------------------
-  // Heavy hulls get relatively smaller wings: a 40-module ship with fighter
-  // wings looks like a toy.
-  const bulkPenalty = all.length > 26 ? Math.max(0.45, 1 - (all.length - 26) * 0.012) : 1;
-  const wingSpanBase =
-    (1.7 + Math.max(0, ...wings.map((w) => w.geometry.span)) * 0.2) * bulkPenalty;
-  const wingPairs: Part[][] = [];
-  for (let i = 0; i < wings.length; i += 2) wingPairs.push(wings.slice(i, i + 2));
-  wingPairs.forEach((pair, index) => {
-    const sample = pair[0];
-    const t = wingPairs.length === 1 ? 0.55 : 0.22 + (index / Math.max(1, wingPairs.length - 1)) * 0.6;
-    const z = zFront - habLen / 2 + 0.5 + t * Math.max(1.5, tailZ - zFront + habLen);
-    const isSFoil = sample.geometry.profile === "s-foil";
-    for (const [sideIndex, side] of ([-1, 1] as const).entries()) {
-      const part = pair[sideIndex] ?? sample;
-      const extra = pair[sideIndex + 2];
-      const placed = transformFaces(moduleFaces(part, ctx), {
-        pos: [side * (halfWidth + 0.05), isSFoil ? 0.08 : side < 0 ? -0.06 : 0.06, z],
-        rotY: side < 0 ? Math.PI : 0,
-        rotZ: side * 0.05,
-      });
-      push(part, placed);
-      if (extra) {
-        push(
-          extra,
-          transformFaces(moduleFaces(extra, ctx), {
-            pos: [side * (halfWidth + 0.05), isSFoil ? -0.32 : -0.24, z + 0.25],
-            rotY: side < 0 ? Math.PI : 0,
-            rotZ: side * 0.08,
-          }),
-        );
-      }
-    }
-  });
-
-  // ---- external plating (clads the outer hull edges) ---------------------
-  platings.forEach((plate, index) => {
-    const t = platings.length === 1 ? 0.5 : (index + 1) / (platings.length + 1);
-    const z = zFront - habLen / 2 + t * Math.max(1, zBack - zFront + habLen);
+  if (habs.length >= 2) {
+    const plateW = halfWidth * 2;
+    const plateD = bodyLength;
+    const plateRgb = mixRgb(hullColour, [0, 0, 0], 0.3);
+    // main slab
+    push(habs[0], transformFaces(box(plateW, halfHeight * 2, plateD, plateRgb, { taperTopW: 0.9 }), {
+      pos: [centreX, 0, centreZ],
+    }));
+    // inset dorsal deck
+    push(habs[0], transformFaces(box(plateW * 0.86, 0.1, plateD * 0.9, scaleRgb(plateRgb, 1.16), { taperTopW: 0.94 }), {
+      pos: [centreX, halfHeight + 0.04, centreZ],
+    }));
+    // centre spine rail
+    push(habs[0], transformFaces(box(plateW * 0.14, 0.12, plateD * 0.96, scaleRgb(plateRgb, 1.24)), {
+      pos: [centreX, halfHeight + 0.09, centreZ],
+    }));
+    // glowing rim strips along both flanks (the in-game module trim look)
     for (const side of [-1, 1] as const) {
-      push(
-        plate,
-        transformFaces(moduleFaces(plate, ctx), {
-          pos: [side * (halfWidth + 0.1), 0.04 * side, z],
-          rotY: side < 0 ? Math.PI : 0,
-        }),
-      );
+      push(habs[0], transformFaces(strip(0.05, 0.07, plateD * 0.86, glowColour, "emissive"), {
+        pos: [centreX + side * (plateW / 2 + 0.01), 0.06, centreZ],
+      }));
+      push(habs[0], transformFaces(strip(0.04, 0.05, plateD * 0.7, glowColour, "emissive"), {
+        pos: [centreX + side * (plateW / 2 + 0.01), -halfHeight * 0.7, centreZ],
+      }));
     }
-  });
+    // ventral keel
+    push(habs[0], transformFaces(box(plateW * 0.4, 0.12, plateD * 0.9, scaleRgb(plateRgb, 0.8)), {
+      pos: [centreX, -halfHeight - 0.05, centreZ],
+    }));
+  }
 
-  // ---- weapon hardpoints -------------------------------------------------
-  const outerX = wingPairs.length > 0 ? halfWidth + wingSpanBase * 0.95 : halfWidth + 0.4;
-  weapons.forEach((weapon, index) => {
-    const side = index % 2 === 0 ? -1 : 1;
-    const row = Math.floor(index / 2);
-    const onWing = wingPairs.length > 0 && index < wingPairs.length * 2;
-    const z = zFront - habLen / 2 + 1.0 + row * 1.15;
-    const y = row % 2 === 0 ? 0.2 : -0.24;
-    const x = onWing
-      ? halfWidth + wingSpanBase * (0.85 + (row % 2) * 0.1)
-      : halfWidth + 0.3 + row * 0.12;
-    push(
-      weapon,
-      transformFaces(moduleFaces(weapon, ctx), {
-        pos: [side * x, y, z],
-        rotY: side < 0 ? Math.PI : 0,
-      }),
-    );
-  });
+  /* ---- 3. hull sockets -------------------------------------------- */
+  const deckRgb = mixRgb(hullColour, [0, 0, 0], 0.3);
 
-  // ---- main engines ------------------------------------------------------
-  const spacing = Math.min(1.45, 3.4 / Math.max(1, mains.length));
-  mains.forEach((engine, index) => {
-    const offset = (index - (mains.length - 1) / 2) * spacing;
-    const z = tailZ + 0.55;
-    push(
-      engine,
-      transformFaces(moduleFaces(engine, ctx, { engineScale: 0.8 }), {
-        pos: [offset, -0.04, z],
-        rotX: Math.PI / 2,
-      }),
-    );
-    const radius = (0.42 + engine.geometry.span * 0.028) * 0.82;
-    plumes.push({ origin: [offset, -0.04, z + 1.0], radius, length: 1.35 + radius * 0.7, rgb: WARM });
-  });
-
-  // ---- light thrusters ---------------------------------------------------
-  lights.forEach((engine, index) => {
-    const side = index % 2 === 0 ? -1 : 1;
-    const row = Math.floor(index / 2);
-    const offset = side * (halfWidth * 0.85 + row * 0.7);
-    const z = tailZ + 0.28 + row * 0.2;
-    const y = mains.length > 0 ? (row % 2 === 0 ? 0.38 : -0.38) : 0;
-    push(
-      engine,
-      transformFaces(moduleFaces(engine, ctx), { pos: [offset, y, z], rotX: Math.PI / 2 }),
-    );
-    plumes.push({
-      origin: [offset, y, z + 0.58],
-      radius: 0.2,
-      length: 0.85,
-      rgb: mix(WARM, [120, 200, 255], 0.35),
-    });
-  });
-
-  // ---- landing gear ------------------------------------------------------
-  const needsTallLegs = gears.some((g) => g.geometry.profile === "leg" || g.geometry.profile === "heavy-strut");
-  const gearClearance = needsTallLegs ? 1.5 : 1.05;
-  const groundY = -halfHeight - gearClearance;
-  const gearSpread = Math.max(0.6, halfWidth * 0.6);
-  gears.forEach((gear, index) => {
-    const side = index % 2 === 0 ? -1 : 1;
-    const row = Math.floor(index / 2);
-    const zs = [zFront - habLen * 0.28, zFront + habLen * 0.15, zBack + habLen * 0.3];
-    const x = gears.length <= 2 ? side * gearSpread : side * (gearSpread + row * 0.3);
-    const z = zs[Math.min(row, zs.length - 1)];
-    push(
-      gear,
-      transformFaces(moduleFaces(gear, ctx, { legLength: gearClearance }), {
-        pos: [x, -halfHeight, z],
-      }),
-    );
-  });
-
-  // ---- shield envelope ---------------------------------------------------
-  const shieldRings: V3[][] = [];
-  if (shields.length > 0) {
-    const radiusX = halfWidth + 0.85;
-    const radiusY = halfHeight + gearClearance * 0.75 + 0.35;
-    const radiusZ = (hullZMax - hullZMin) / 2 + 0.9;
-    const seg = 26;
-    for (const tilt of [0]) {
-      const ring: V3[] = [];
-      for (let i = 0; i < seg; i += 1) {
-        const a = (i / seg) * Math.PI * 2;
-        const x = Math.cos(a) * radiusX;
-        const z = Math.sin(a) * radiusZ;
-        ring.push([x, Math.sin(tilt) * z * 0.55 + 0.1, z * Math.cos(tilt) + hullMidZ]);
-      }
-      shieldRings.push(ring);
+  // sides: 7 slots along the hull, both flanks
+  const sideSlots = 7;
+  for (let i = 0; i < sideSlots; i += 1) {
+    const z = hullFront + ((i + 0.5) / sideSlots) * bodyLength;
+    addSocket("sideR", [centreX + halfWidth, 0, z], [1, 0, 0], "hull");
+    addSocket("sideL", [centreX - halfWidth, 0, z], [-1, 0, 0], "hull");
+  }
+  // stern: 3 x 3 grid on the rear plate
+  const sternZ = hullBack;
+  for (const gx of [-1, 0, 1]) {
+    for (const gy of [-1, 0, 1]) {
+      addSocket("aft", [centreX + gx * podWidth * 0.62, gy * halfHeight * 0.62, sternZ], [0, 0, 1], "hull");
     }
-    for (const tilt of [-0.5]) {
-      const ring: V3[] = [];
-      for (let i = 0; i < seg; i += 1) {
-        const a = (i / seg) * Math.PI * 2;
-        const x = Math.cos(a) * radiusX * 0.8;
-        const y = Math.sin(a) * radiusY;
-        ring.push([x, y, Math.sin(tilt) * radiusZ * 0.85 + hullMidZ]);
-      }
-      shieldRings.push(ring);
+  }
+  // dorsal: 3 x 3 grid on the top deck
+  for (const gx of [-1, 0, 1]) {
+    for (let i = 0; i < 3; i += 1) {
+      const z = hullFront + ((i + 0.5) / 3) * bodyLength;
+      addSocket("top", [centreX + gx * podWidth * 0.6, halfHeight, z], [0, 1, 0], "hull");
+    }
+  }
+  // ventral: 3 x 4 grid
+  for (const gx of [-1, 0, 1]) {
+    for (let i = 0; i < 4; i += 1) {
+      const z = hullFront + ((i + 0.5) / 4) * bodyLength;
+      addSocket("bottom", [centreX + gx * podWidth * 0.55, -halfHeight, z], [0, -1, 0], "hull");
+    }
+  }
+  // nose
+  addSocket("fore", [centreX, 0, hullFront], [0, 0, -1], "hull");
+
+  /* ---- 4. cockpit at the nose ------------------------------------- */
+  if (cockpits[0]) {
+    const spec = moduleSpec(cockpits[0], ctx);
+    const target = claim("fore", (c) => c[0]);
+    if (target) {
+      const { transform, gap } = attachTransform(spec, "aft", target.pos, target.dir);
+      push(cockpits[0], specToWorld(spec, transform).faces);
+      attachments.push({ child: cockpits[0].id, parent: "hull", socket: "fore", gap });
     }
   }
 
-  // ---- bounds ------------------------------------------------------------
+  /* ---- 5. reactors on the dorsal deck ---------------------------- */
+  reactors.forEach((reactor) => {
+    const target = claim("top", (c) => c[0]);
+    if (!target) return;
+    const spec = moduleSpec(reactor, ctx, { reactorLength: podWidth * 1.0 });
+    const { transform, gap } = attachTransform(spec, "mount", target.pos, target.dir);
+    push(reactor, specToWorld(spec, transform).faces);
+    attachments.push({ child: reactor.id, parent: "hull", socket: "top", gap });
+  });
+
+  /* ---- 6. ventral bays ------------------------------------------- */
+  bays.forEach((bay) => {
+    const target = claim("bottom", (c) => c[Math.floor(c.length / 2)] ?? c[0]);
+    if (!target) return;
+    const spec = moduleSpec(bay, ctx);
+    const { transform, gap } = attachTransform(spec, "mount", target.pos, target.dir);
+    push(bay, specToWorld(spec, transform).faces);
+    attachments.push({ child: bay.id, parent: "hull", socket: "bottom", gap });
+  });
+
+  /* ---- 7. wings on the flanks ------------------------------------ */
+  const wingHardpoints: PlacedSocket[] = [];
+  const wingCountPerSide: Record<string, number> = {};
+  wings.forEach((wing, index) => {
+    const pairIndex = Math.floor(index / 2);
+    const isStarboard = index % 2 === 0;
+    const lower = pairIndex % 2 === 1;
+    const zIndex = Math.floor(pairIndex / 2);
+    const kind = isStarboard ? "sideR" : "sideL";
+
+    // choose a slot marching along the hull for each pair
+    const target = claim(kind, (candidates) => {
+      if (candidates.length === 0) return undefined;
+      const ordered = [...candidates].sort((a, b) => a.pos[2] - b.pos[2]);
+      const pickIndex = Math.min(ordered.length - 1, 1 + zIndex * 2);
+      return ordered[pickIndex];
+    });
+    if (!target) return;
+
+    const spec = moduleSpec(wing, ctx);
+    const mirror: V3 = [isStarboard ? 1 : -1, lower ? -1 : 1, 1];
+    const side = isStarboard ? 1 : -1;
+    wingCountPerSide[side > 0 ? "R" : "L"] = (wingCountPerSide[side > 0 ? "R" : "L"] ?? 0) + 1;
+
+    const { transform, gap } = attachTransform(spec, "root", target.pos, target.dir, mirror);
+    const world = specToWorld(spec, transform);
+    push(wing, world.faces);
+    attachments.push({ child: wing.id, parent: "hull", socket: target.id, gap });
+
+    // register this wing's hardpoints so guns can bolt straight onto them
+    world.sockets
+      .filter((socket) => socket.kind === "hardpoint")
+      .forEach((socket) => wingHardpoints.push({ ...socket, owner: wing.id }));
+  });
+
+  /* ---- 8. external plating on remaining flanks ------------------- */
+  platings.forEach((plate, index) => {
+    const side = index % 2 === 0 ? "sideR" : "sideL";
+    const target = claim(side, (candidates) => candidates[0]);
+    if (!target) return;
+    const spec = moduleSpec(plate, ctx);
+    const mirror: V3 = [side === "sideR" ? 1 : -1, 1, 1];
+    const { transform, gap } = attachTransform(spec, "mount", target.pos, target.dir, mirror);
+    push(plate, specToWorld(spec, transform).faces);
+    attachments.push({ child: plate.id, parent: "hull", socket: target.id, gap });
+  });
+
+  // any leftover plating rides the dorsal deck as panelling
+  platings.slice(Math.floor(platings.length / 2) * 2).forEach((plate) => {
+    const target = claim("top", (candidates) => candidates[candidates.length - 1]);
+    if (!target) return;
+    const spec = moduleSpec(plate, ctx, {});
+    // lay it flat against the deck
+    const rotated: ModuleSpec = {
+      faces: spec.faces.map((f) => ({ ...f, pts: f.pts.map((p) => [p[1], -p[0], p[2]] as V3) })),
+      sockets: spec.sockets.map((s) => ({ ...s, dir: [s.dir[1], -s.dir[0], s.dir[2]] as V3, id: "mount" })),
+    };
+    const { transform, gap } = attachTransform(rotated, "mount", target.pos, target.dir);
+    push(plate, specToWorld(rotated, transform).faces);
+    attachments.push({ child: plate.id, parent: "hull", socket: target.id, gap });
+  });
+
+  /* ---- 9. weapons: wing hardpoints first, then hull --------------- */
+  const usedHardpoints = new Set<string>();
+  weapons.forEach((weapon, index) => {
+    const spec = moduleSpec(weapon, ctx);
+    const hardpoint = wingHardpoints.find((h) => !usedHardpoints.has(`${h.owner}-${h.id}-${h.pos.join()}`));
+    if (hardpoint) {
+      usedHardpoints.add(`${hardpoint.owner}-${hardpoint.id}-${hardpoint.pos.join()}`);
+      const { transform, gap } = attachTransform(spec, "mount", hardpoint.pos, hardpoint.dir);
+      push(weapon, specToWorld(spec, transform).faces);
+      attachments.push({ child: weapon.id, parent: hardpoint.owner, socket: hardpoint.id, gap });
+      return;
+    }
+    // no wing space: bolt it to the hull flank with a pylon so it cannot float
+    const side = index % 2 === 0 ? "sideR" : "sideL";
+    const target = claim(side, (candidates) => candidates[candidates.length - 1 - Math.floor(index / 2) % 2]);
+    if (!target) return;
+    const pylonH = 0.26;
+    const pylon = box(pylonH, 0.16, 0.34, darkColour, { kind: "dark" });
+    push(weapon, transformFaces(pylon, { pos: [target.pos[0] + (side === "sideR" ? pylonH / 2 : -pylonH / 2), target.pos[1] + 0.1, target.pos[2]] }));
+    const mountPos: V3 = [target.pos[0] + (side === "sideR" ? pylonH : -pylonH), target.pos[1] + 0.16, target.pos[2]];
+    const { transform, gap } = attachTransform(spec, "mount", mountPos, [0, 1, 0]);
+    push(weapon, specToWorld(spec, transform).faces);
+    attachments.push({ child: weapon.id, parent: "hull", socket: target.id, gap });
+  });
+
+  /* ---- 10. engines on the stern plate ---------------------------- */
+  const mainSpacing = podWidth * 0.66;
+  mains.forEach((engine, index) => {
+    const target = claim("aft", (candidates) => {
+      const ordered = [...candidates].sort((a, b) => Math.abs(a.pos[0]) - Math.abs(b.pos[0]) || a.pos[0] - b.pos[0]);
+      return ordered[index % Math.max(1, ordered.length)];
+    });
+    if (!target) return;
+    const spec = moduleSpec(engine, ctx, { engineScale: Math.min(1, 1.05 - mains.length * 0.03) });
+    const { transform, gap } = attachTransform(spec, "mount", target.pos, target.dir);
+    push(engine, specToWorld(spec, transform).faces);
+    attachments.push({ child: engine.id, parent: "hull", socket: target.id, gap });
+
+    const radius = (0.42 + engine.geometry.span * 0.028) * Math.min(1, 1.05 - mains.length * 0.03);
+    const nozzle: V3 = [target.pos[0], target.pos[1], target.pos[2] + radius * 1.4];
+    plumes.push({
+      origin: nozzle,
+      dir: [0, 0, 1],
+      radius,
+      length: 9,
+      rgb: hexToRgb(style.trail),
+    });
+  });
+
+  /* ---- 11. light thrusters --------------------------------------- */
+  lights.forEach((engine, index) => {
+    const target = claim("aft", (candidates) => {
+      const ordered = [...candidates].sort((a, b) => Math.abs(a.pos[1]) - Math.abs(b.pos[1]) || Math.abs(a.pos[0]) - Math.abs(b.pos[0]));
+      return ordered[index % Math.max(1, ordered.length)];
+    });
+    if (!target) return;
+    const spec = moduleSpec(engine, ctx);
+    const { transform, gap } = attachTransform(spec, "mount", target.pos, target.dir);
+    push(engine, specToWorld(spec, transform).faces);
+    attachments.push({ child: engine.id, parent: "hull", socket: target.id, gap });
+    plumes.push({
+      origin: [target.pos[0], target.pos[1], target.pos[2] + 0.35],
+      dir: [0, 0, 1],
+      radius: 0.19,
+      length: 7,
+      rgb: hexToRgb(style.trail),
+    });
+  });
+
+  /* ---- 12. landing gear ------------------------------------------ */
+  const needsTallLegs = gears.some((g) => g.geometry.profile === "leg" || g.geometry.profile === "heavy-strut");
+  const gearClearance = needsTallLegs ? 1.35 : 0.95;
+  const gearRows = [0, 3, 1, 2];
+  gears.forEach((gear, index) => {
+    const row = gearRows[index % gearRows.length];
+    const target = claim("bottom", (candidates) => {
+      const byZ = [...candidates].sort((a, b) => a.pos[2] - b.pos[2]);
+      const bucket = byZ.filter((_, i) => i % 4 === row % 4);
+      return bucket[0] ?? byZ[Math.min(byZ.length - 1, row)];
+    });
+    if (!target) return;
+    const spec = moduleSpec(gear, ctx, { legLength: gearClearance });
+    const { transform, gap } = attachTransform(spec, "mount", target.pos, target.dir);
+    push(gear, specToWorld(spec, transform).faces);
+    attachments.push({ child: gear.id, parent: "hull", socket: target.id, gap });
+  });
+
+  /* ---- 13. shield emitters --------------------------------------- */
+  shields.forEach((shield) => {
+    const target = claim("top", (candidates) => candidates[0]);
+    if (!target) return;
+    const spec = moduleSpec(shield, ctx);
+    const { transform, gap } = attachTransform(spec, "mount", target.pos, target.dir);
+    push(shield, specToWorld(spec, transform).faces);
+    attachments.push({ child: shield.id, parent: "hull", socket: target.id, gap });
+  });
+
+  /* ---- 14. style flourishes (sentinel rings, sails, fins, veins) -- */
+  const boundsNow = boundsOf(parts);
+  const centre: V3 = [
+    (boundsNow.min[0] + boundsNow.max[0]) / 2,
+    (boundsNow.min[1] + boundsNow.max[1]) / 2,
+    (boundsNow.min[2] + boundsNow.max[2]) / 2,
+  ];
+
+  for (const flourish of style.flourishes) {
+    const faces = flourishGeometry(flourish, {
+      style,
+      bounds: boundsNow,
+      plumes,
+      engines: mains.map((m) => m.id),
+      centre,
+      halfWidth: Math.max(halfWidth, (boundsNow.max[0] - boundsNow.min[0]) / 2),
+      bodyLength,
+      hullFront,
+      hullBack,
+    });
+    if (faces.length > 0) flourishFaces.push({ kind: flourish, faces });
+  }
+
+  const bounds = parts.length > 0 ? boundsOf(parts) : { min: [-1, -1, -2] as V3, max: [1, 1, 2] as V3 };
+  // make sure flourishes are inside the frame too
+  const allFlourish = flourishFaces.flatMap((f) => f.faces);
+  for (const face of allFlourish) {
+    for (const p of face.pts) {
+      bounds.min[0] = Math.min(bounds.min[0], p[0]);
+      bounds.min[1] = Math.min(bounds.min[1], p[1]);
+      bounds.min[2] = Math.min(bounds.min[2], p[2]);
+      bounds.max[0] = Math.max(bounds.max[0], p[0]);
+      bounds.max[1] = Math.max(bounds.max[1], p[1]);
+      bounds.max[2] = Math.max(bounds.max[2], p[2]);
+    }
+  }
+
+  return {
+    parts,
+    plumes,
+    bounds: parts.length > 0 ? bounds : { min: [-1, -1, -2], max: [1, 1, 2] },
+    groundY: -halfHeight - gearClearance,
+    moduleCount,
+    style,
+    attachments,
+    flourishes: flourishFaces,
+    hasShield: shields.length > 0,
+  };
+}
+
+function boundsOf(parts: PartMesh[]): { min: V3; max: V3 } {
   const min: V3 = [Infinity, Infinity, Infinity];
   const max: V3 = [-Infinity, -Infinity, -Infinity];
   for (const part of parts) {
@@ -1175,71 +1214,503 @@ export function buildShipMesh(build: Build, opts: { palette?: string } = {}): Sh
       }
     }
   }
-  if (!Number.isFinite(min[0])) {
-    min[0] = min[1] = min[2] = -1;
-    max[0] = max[1] = max[2] = 1;
-  }
-  if (parts.length === 0) {
-    min[0] = -1;
-    max[0] = 1;
-    min[1] = -1;
-    max[1] = 1;
-    min[2] = -1.6;
-    max[2] = 1.6;
-  }
-
-  return {
-    parts,
-    shieldRings,
-    plumes,
-    bounds: { min, max },
-    groundY: parts.length > 0 ? groundY : -1.2,
-    moduleCount,
-  };
+  if (!Number.isFinite(min[0])) return { min: [-1, -1, -2], max: [1, 1, 2] };
+  return { min, max };
 }
 
-/**
- * A single module rendered on its own, for the part portraits in the picker.
- * Returns the same projected face structure as a full ship so it can be drawn
- * with the same component.
- */
-export function buildPartMesh(part: Part, opts: { palette?: string } = {}): ShipMesh {
-  const span = part.geometry.span;
-  const halfWidth = 1.0 + span * 0.06;
-  const ctx: HullContext = {
-    halfWidth,
-    halfHeight: 0.8,
-    density: "high",
-    hullBase: hexToRgb(paletteById(opts.palette).base),
-  };
-  const faces = moduleFaces(part, ctx);
+/* ------------------------------------------------------------------ */
+/* style flourishes                                                   */
+/* ------------------------------------------------------------------ */
 
-  const min: V3 = [Infinity, Infinity, Infinity];
-  const max: V3 = [-Infinity, -Infinity, -Infinity];
-  for (const face of faces) {
-    for (const p of face.pts) {
-      min[0] = Math.min(min[0], p[0]);
-      min[1] = Math.min(min[1], p[1]);
-      min[2] = Math.min(min[2], p[2]);
-      max[0] = Math.max(max[0], p[0]);
-      max[1] = Math.max(max[1], p[1]);
-      max[2] = Math.max(max[2], p[2]);
+interface FlourishCtx {
+  style: ShipStyle;
+  bounds: { min: V3; max: V3 };
+  plumes: PlumeSpec[];
+  engines: string[];
+  centre: V3;
+  halfWidth: number;
+  bodyLength: number;
+  hullFront: number;
+  hullBack: number;
+}
+
+function flourishGeometry(kind: FlourishId, ctx: FlourishCtx): Face3D[] {
+  const { style } = ctx;
+  const hull = hexToRgb(style.hullBase);
+  const dark = hexToRgb(style.hullDark);
+  const glow = hexToRgb(style.emissive);
+  const hot = hexToRgb(style.emissiveHot);
+  const faces: Face3D[] = [];
+
+  switch (kind) {
+    case "ring-engines": {
+      // Sentinel-style glowing rings around each main engine
+      const mainPlumes = ctx.plumes.filter((p) => p.radius > 0.3);
+      for (const plume of mainPlumes) {
+        plume.ring = { radius: plume.radius * 2.1, rgb: glow };
+        faces.push(
+          ...transformFaces(annulus(plume.radius * 1.35, plume.radius * 2.2, glow, { seg: 20 }), {
+            pos: [plume.origin[0], plume.origin[1], plume.origin[2] - 0.35],
+          }),
+          ...transformFaces(annulus(plume.radius * 1.5, plume.radius * 2.05, hot, { seg: 20 }), {
+            pos: [plume.origin[0], plume.origin[1], plume.origin[2] - 0.36],
+          }),
+        );
+      }
+      // dark rotor collars behind each engine (kept tight to the nozzle)
+      for (const plume of mainPlumes) {
+        faces.push(
+          ...transformFaces(annulus(plume.radius * 1.5, plume.radius * 2.0, scaleRgb(dark, 0.9), { seg: 20, kind: "dark" }), {
+            pos: [plume.origin[0], plume.origin[1], plume.origin[2] - 0.5],
+          }),
+        );
+      }
+      break;
+    }
+    case "blade-wings": {
+      // Angular blades that grow out of the hull flank and sweep down/aft.
+      // The root starts INSIDE the hull so the blade can never look detached.
+      const span = Math.min(ctx.halfWidth * 1.1, 1.5);
+      const chord = ctx.bodyLength * 0.5;
+      for (const side of [-1, 1] as const) {
+        const rootX = ctx.centre[0] + side * (ctx.halfWidth * 0.82);
+        const z = ctx.hullBack - ctx.bodyLength * 0.3;
+        faces.push(...transformFaces(
+          box(span, 0.2, chord, scaleRgb(hull, 0.4), { taperBackW: 0.2, taperFrontW: 0.85, kind: "hull" }),
+          { pos: [rootX + side * (span / 2 - 0.05), -0.12, z], rot: fromAxisAngle([0, 1, 0], side * 0.42) },
+        ));
+        faces.push(...transformFaces(strip(span * 0.8, 0.05, 0.1, glow, "emissive"), {
+          pos: [rootX + side * (span / 2 - 0.05), 0.0, z - chord * 0.36],
+          rot: fromAxisAngle([0, 1, 0], side * 0.42),
+        }));
+      }
+      break;
+    }
+    case "solar-sails": {
+      // Sails grow out of the flank on a spar. The root sits INSIDE the hull
+      // and the membrane starts at the hull surface, so nothing floats.
+      const sailRgb = mixRgb(hexToRgb(style.emissive), [255, 255, 255], 0.5);
+      const span = Math.min(ctx.halfWidth * 1.25, 1.9);
+      const chord = ctx.bodyLength * 0.62;
+      const rootY = 0.1;
+      for (const side of [-1, 1] as const) {
+        const rootX = ctx.centre[0] + side * ctx.halfWidth * 0.7;
+        const tipX = rootX + side * span;
+        const roll = side * -0.34;
+        // spar: from inside the hull out to the sail tip
+        faces.push(...transformFaces(
+          box(span * 1.05, 0.11, 0.16, scaleRgb(hull, 0.75), { kind: "hull" }),
+          { pos: [(rootX + tipX) / 2, rootY, ctx.centre[2] - chord * 0.1], rot: fromAxisAngle([0, 0, 1], roll) },
+        ));
+        // membrane: starts at the flank and sweeps outward
+        faces.push(...transformFaces(
+          box(span, 0.05, chord, sailRgb, { kind: "sail", taperBackW: 0.72, taperFrontW: 0.9 }),
+          { pos: [rootX + side * span * 0.42, rootY, ctx.centre[2]], rot: fromAxisAngle([0, 0, 1], roll) },
+        ));
+        faces.push(...transformFaces(
+          strip(span * 0.9, 0.05, 0.08, glow, "emissive"),
+          { pos: [rootX + side * span * 0.42, rootY + 0.05, ctx.centre[2] - chord * 0.4], rot: fromAxisAngle([0, 0, 1], roll) },
+        ));
+      }
+      break;
+    }
+    case "exotic-fin": {
+      // Dorsal fin: pylon rooted in the deck, blade above it, spine lit.
+      const top = ctx.bounds.max[1];
+      const height = Math.min(0.9, 0.35 + ctx.halfWidth * 0.35);
+      const z = ctx.hullBack - ctx.bodyLength * 0.34;
+      faces.push(...transformFaces(
+        box(0.16, height, ctx.bodyLength * 0.2, scaleRgb(dark, 1.05), { kind: "dark" }),
+        { pos: [ctx.centre[0], top + height / 2 - 0.1, z] },
+      ));
+      faces.push(...transformFaces(
+        foil(0.5, ctx.bodyLength * 0.42, height * 0.7, height * 0.6, 0, mixRgb(hull, [255, 255, 255], 0.2), { taper: 0.5 }),
+        { pos: [ctx.centre[0], top + height * 0.9, z], rot: fromAxisAngle([0, 1, 0], Math.PI / 2) },
+      ));
+      faces.push(...transformFaces(strip(0.05, 0.05, ctx.bodyLength * 0.26, glow, "emissive"), {
+        pos: [ctx.centre[0], top + height * 1.5, z],
+      }));
+      break;
+    }
+    case "pirate-spikes": {
+      for (const side of [-1, 1] as const) {
+        for (let i = 0; i < 3; i += 1) {
+          const z = ctx.hullFront + ctx.bodyLength * (0.2 + i * 0.28);
+          faces.push(...transformFaces(
+            box(ctx.halfWidth * 0.95, 0.16, 0.22, scaleRgb(dark, 1.1), { taperBackW: 0.1, kind: "dark" }),
+            {
+              pos: [ctx.centre[0] + side * ctx.halfWidth * 0.72, 0.25, z],
+              rot: fromAxisAngle([0, 0, 1], side * -0.3),
+            },
+          ));
+        }
+      }
+      break;
+    }
+    case "organic-veins": {
+      for (const side of [-1, 1] as const) {
+        for (let i = 0; i < 4; i += 1) {
+          const z = ctx.hullFront + ctx.bodyLength * (0.16 + i * 0.22);
+          const y = side * (0.12 + i * 0.05);
+          faces.push(...transformFaces(strip(0.05, 0.05, ctx.bodyLength * 0.24, glow, "emissive"), {
+            pos: [ctx.centre[0] + side * ctx.halfWidth * 0.88, y, z],
+          }));
+        }
+      }
+      break;
+    }
+    case "dorsal-towers":
+    case "hull-rim-glow":
+    default:
+      break;
+  }
+  return faces;
+}
+
+/* ------------------------------------------------------------------ */
+/* view + projection                                                  */
+/* ------------------------------------------------------------------ */
+
+export interface ViewState {
+  yaw: number;
+  pitch: number;
+  zoom: number;
+}
+
+export const DEFAULT_VIEW: ViewState = { yaw: -0.66, pitch: -0.3, zoom: 1 };
+
+function rotateView(v: V3, view: ViewState): V3 {
+  const cy = Math.cos(view.yaw);
+  const sy = Math.sin(view.yaw);
+  const x1 = v[0] * cy - v[2] * sy;
+  const z1 = v[0] * sy + v[2] * cy;
+  const cp = Math.cos(view.pitch);
+  const sp = Math.sin(view.pitch);
+  const y2 = v[1] * cp - z1 * sp;
+  const z2 = v[1] * sp + z1 * cp;
+  return [x1, y2, z2];
+}
+
+export interface ProjectedFace {
+  partId: string;
+  partName: string;
+  category: PartCategoryId | "scene";
+  points: string;
+  fill: string;
+  opacity: number;
+  kind: FaceKind;
+  depth: number;
+  flourish?: string;
+}
+
+export interface ProjectedScene {
+  faces: ProjectedFace[];
+  shield: { points: string; depth: number }[][];
+  plumes: { segments: { points: string; alpha: number }[]; core: string }[];
+  deck: string[];
+  stars: { x: number; y: number; r: number; alpha: number }[];
+  nebula: { x: number; y: number; rx: number; ry: number; color: string; alpha: number; rotate: number }[];
+  shadow: { cx: number; cy: number; rx: number; ry: number } | null;
+  environment: "space" | "hangar";
+  camera: { x: number; y: number; z: number };
+}
+
+const LIGHT: V3 = norm([-0.45, 0.72, -0.55]);
+const FOCAL = 26;
+
+/** Deterministic starfield so the backdrop never flickers between renders. */
+function starfield(width: number, height: number, seed = 7) {
+  let s = seed >>> 0;
+  const rand = () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+  const count = Math.round((width * height) / 5200);
+  const stars = Array.from({ length: count }, () => ({
+    x: rand() * width,
+    y: rand() * height,
+    r: 0.35 + rand() * 1.15,
+    alpha: 0.25 + rand() * 0.75,
+  }));
+  const nebula = [
+    { x: width * (0.2 + rand() * 0.2), y: height * (0.25 + rand() * 0.3), rx: width * 0.5, ry: height * 0.55, color: "#1d5f8a", alpha: 0.3, rotate: rand() * 60 },
+    { x: width * (0.7 + rand() * 0.2), y: height * (0.6 + rand() * 0.3), rx: width * 0.42, ry: height * 0.4, color: "#3c2a63", alpha: 0.26, rotate: rand() * 60 },
+    { x: width * 0.5, y: height * 0.15, rx: width * 0.6, ry: height * 0.3, color: "#0d3f66", alpha: 0.22, rotate: 0 },
+  ];
+  return { stars, nebula };
+}
+
+export function projectScene(
+  mesh: ShipMesh,
+  view: ViewState,
+  width: number,
+  height: number,
+  opts: { padding?: number; baseKind?: FaceKind } = {},
+): ProjectedScene {
+  const finite = (n: number, fallback = 0) => (Number.isFinite(n) ? n : fallback);
+  const min: V3 = [finite(mesh.bounds.min[0], -1), finite(mesh.bounds.min[1], -1), finite(mesh.bounds.min[2], -2)];
+  const max: V3 = [finite(mesh.bounds.max[0], 1), finite(mesh.bounds.max[1], 1), finite(mesh.bounds.max[2], 2)];
+  const centre: V3 = [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2];
+
+  const rotated = mesh.parts.map((part) => part.faces.map((face) => face.pts.map((p) => rotateView(p, view))));
+  const flourishRotated = mesh.flourishes.map((group) =>
+    group.faces.map((face) => face.pts.map((p) => rotateView(p, view))),
+  );
+
+  let vMinX = Infinity;
+  let vMaxX = -Infinity;
+  let vMinY = Infinity;
+  let vMaxY = -Infinity;
+  const include = (p: V3) => {
+    if (p[0] < vMinX) vMinX = p[0];
+    if (p[0] > vMaxX) vMaxX = p[0];
+    if (p[1] < vMinY) vMinY = p[1];
+    if (p[1] > vMaxY) vMaxY = p[1];
+  };
+  // frame on the hull only: engine trails are meant to run off-screen
+  for (const partFaces of rotated) {
+    for (const face of partFaces) for (const p of face) include(p);
+  }
+  for (const group of flourishRotated) {
+    for (const face of group) for (const p of face) include(p);
+  }
+  if (!Number.isFinite(vMinX)) {
+    vMinX = -1;
+    vMaxX = 1;
+    vMinY = -1;
+    vMaxY = 1;
+  }
+
+  const pad = opts.padding ?? 1.32;
+  const scale = Math.min(width / (Math.max(0.001, vMaxX - vMinX) * pad), height / (Math.max(0.001, vMaxY - vMinY) * pad));
+  const viewCentreX = (vMinX + vMaxX) / 2;
+  const viewCentreY = (vMinY + vMaxY) / 2;
+  const cam = rotateView(centre, view);
+  const depthCentre = cam[2] ?? 0;
+
+  const projectRotated = (r: V3) => {
+    const depth = r[2] - depthCentre;
+    const persp = FOCAL / (FOCAL + depth * 0.42);
+    return {
+      x: width / 2 + (r[0] - viewCentreX) * scale * persp,
+      y: height / 2 - (r[1] - viewCentreY) * scale * persp,
+      z: depth,
+    };
+  };
+  const project = (v: V3) => projectRotated(rotateView(v, view));
+
+  const shade = (rgb: [number, number, number], pts: V3[], kind: FaceKind, opacity?: number) => {
+    const n = norm(cross(sub(pts[1], pts[0]), sub(pts[2], pts[0])));
+    const nv = rotateView(n, view);
+    const diffuse = Math.max(0, dot(nv, LIGHT));
+    // fill light from the opposite side keeps dark Sentinel plating readable
+    const fill = Math.max(0, dot(nv, [-LIGHT[0], 0.15, -LIGHT[2]])) * 0.34;
+    const lum = 0.34 + 0.95 * diffuse + fill;
+    const rim = Math.pow(1 - Math.min(1, Math.abs(nv[2])), 3) * 0.26;
+    const viewDir: V3 = norm([LIGHT[0], LIGHT[1], LIGHT[2] - 1]);
+    const spec = Math.pow(Math.max(0, dot(nv, viewDir)), 26) * 0.4;
+
+    let out = scaleRgb(rgb, lum);
+    out = mixRgb(out, [120, 200, 255], rim);
+    out = mixRgb(out, [255, 255, 255], spec);
+
+    if (kind === "emissive" || kind === "trim") {
+      out = scaleRgb(mixRgb(out, rgb, 0.6), 1.5);
+    }
+    if (kind === "glass") out = mixRgb(out, [12, 20, 34], 0.35);
+    if (kind === "dark") out = scaleRgb(out, 0.78);
+    if (kind === "sail") out = scaleRgb(out, 1.05);
+    return rgbCss(out, opacity ?? 1);
+  };
+
+  const out: ProjectedFace[] = [];
+  const emit = (
+    partId: string,
+    partName: string,
+    category: PartCategoryId | "scene",
+    face: Face3D,
+    rotatedPts: V3[],
+    flourish?: string,
+  ) => {
+    const projected = rotatedPts.map(projectRotated);
+    const depth = projected.reduce((sum, p) => sum + p.z, 0) / Math.max(1, projected.length);
+    out.push({
+      partId,
+      partName,
+      category,
+      points: projected.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" "),
+      fill: shade(face.rgb, face.pts, face.kind, face.opacity),
+      opacity: face.opacity ?? 1,
+      kind: face.kind,
+      depth,
+      flourish,
+    });
+  };
+
+  mesh.parts.forEach((part, partIndex) => {
+    part.faces.forEach((face, faceIndex) => {
+      emit(part.partId, part.partName, part.category, face, rotated[partIndex][faceIndex]);
+    });
+  });
+  mesh.flourishes.forEach((group, groupIndex) => {
+    group.faces.forEach((face, faceIndex) => {
+      emit(`${group.kind}`, group.kind, "scene", face, flourishRotated[groupIndex][faceIndex], group.kind);
+    });
+  });
+
+  out.sort((a, b) => b.depth - a.depth);
+
+  const trailLength = mesh.style.environment === "space" ? 16 : 4.5;
+  const plumes = mesh.plumes
+    .map((plume) => {
+      const dir = norm(plume.dir);
+      const end: V3 = add(plume.origin, mul(dir, plume.length * (trailLength / 9)));
+      const p0 = project(plume.origin);
+      const p1 = project(end);
+      const dx = p1.x - p0.x;
+      const dy = p1.y - p0.y;
+      const l = Math.hypot(dx, dy) || 1;
+      const nx = -dy / l;
+      const ny = dx / l;
+      const w0 = Math.max(1.8, plume.radius * scale * 0.34);
+      const at = (t: number): { x: number; y: number } => ({
+        x: p0.x + (p1.x - p0.x) * t,
+        y: p0.y + (p1.y - p0.y) * t,
+      });
+      const quad = (t0: number, t1: number, wStart: number, wEnd: number) => {
+        const a = at(t0);
+        const b = at(t1);
+        return [
+          `${(a.x + nx * wStart).toFixed(1)},${(a.y + ny * wStart).toFixed(1)}`,
+          `${(b.x + nx * wEnd).toFixed(1)},${(b.y + ny * wEnd).toFixed(1)}`,
+          `${(b.x - nx * wEnd).toFixed(1)},${(b.y - ny * wEnd).toFixed(1)}`,
+          `${(a.x - nx * wStart).toFixed(1)},${(a.y - ny * wStart).toFixed(1)}`,
+        ].join(" ");
+      };
+      // four stacked segments so the trail fades with distance instead of
+      // drawing one hard-edged wedge across the whole frame
+      return {
+        segments: [
+          { points: quad(0, 0.22, w0, w0 * 0.86), alpha: 0.5 },
+          { points: quad(0.22, 0.5, w0 * 0.86, w0 * 0.6), alpha: 0.34 },
+          { points: quad(0.5, 0.78, w0 * 0.6, w0 * 0.34), alpha: 0.2 },
+          { points: quad(0.78, 1, w0 * 0.34, w0 * 0.12), alpha: 0.08 },
+        ],
+        core: quad(0, 0.28, w0 * 0.4, w0 * 0.22),
+      };
+    })
+    .filter(Boolean);
+
+  const shield = mesh.hasShield
+    ? [
+        ringOf(centre, max, min, 0).map((v, i, arr) => {
+          const p = project(v);
+          const next = project(arr[(i + 1) % arr.length]);
+          return { points: `${p.x.toFixed(1)},${p.y.toFixed(1)} ${next.x.toFixed(1)},${next.y.toFixed(1)}`, depth: p.z };
+        }),
+        ringOf(centre, max, min, 1).map((v, i, arr) => {
+          const p = project(v);
+          const next = project(arr[(i + 1) % arr.length]);
+          return { points: `${p.x.toFixed(1)},${p.y.toFixed(1)} ${next.x.toFixed(1)},${next.y.toFixed(1)}`, depth: p.z };
+        }),
+      ]
+    : [];
+
+  const deck: string[] = [];
+  const environment = mesh.style.environment;
+  if (environment === "hangar") {
+    const gy = mesh.groundY;
+    const gx = Math.max(4, (max[0] - min[0]) * 0.9 + 2);
+    const gz = Math.max(4, (max[2] - min[2]) * 0.75 + 2);
+    const steps = 7;
+    for (let i = -steps; i <= steps; i += 1) {
+      const z = (i / steps) * gz;
+      const a = project([-gx, gy, z]);
+      const b = project([gx, gy, z]);
+      deck.push(`${a.x.toFixed(1)},${a.y.toFixed(1)} ${b.x.toFixed(1)},${b.y.toFixed(1)}`);
+      const x = (i / steps) * gx;
+      const c = project([x, gy, -gz]);
+      const d = project([x, gy, gz]);
+      deck.push(`${c.x.toFixed(1)},${c.y.toFixed(1)} ${d.x.toFixed(1)},${d.y.toFixed(1)}`);
     }
   }
 
+  const { stars, nebula } = starfield(width, height, (mesh.moduleCount + 11) * 13);
+
+  let shadow: ProjectedScene["shadow"] = null;
+  if (environment === "hangar") {
+    const pts = [
+      project([min[0] - 0.5, mesh.groundY, min[2] - 0.5]),
+      project([max[0] + 0.5, mesh.groundY, min[2] - 0.5]),
+      project([max[0] + 0.5, mesh.groundY, max[2] + 0.5]),
+      project([min[0] - 0.5, mesh.groundY, max[2] + 0.5]),
+    ];
+    const sxs = pts.map((p) => p.x);
+    const sys = pts.map((p) => p.y);
+    shadow = {
+      cx: (Math.min(...sxs) + Math.max(...sxs)) / 2,
+      cy: (Math.min(...sys) + Math.max(...sys)) / 2,
+      rx: (Math.max(...sxs) - Math.min(...sxs)) / 2,
+      ry: Math.max(6, (Math.max(...sys) - Math.min(...sys)) / 2),
+    };
+  }
+
   return {
-    parts: [{ partId: part.id, partName: part.name, category: part.category, faces }],
-    shieldRings: [],
+    faces: out,
+    shield,
+    plumes,
+    deck,
+    stars,
+    nebula,
+    shadow,
+    environment,
+    camera: { x: cam[0], y: cam[1], z: cam[2] },
+  };
+}
+
+/** A shield bubble ring: 0 = horizontal equator, 1 = tilted envelope. */
+function ringOf(centre: V3, max: V3, min: V3, variant: 0 | 1): V3[] {
+  // the bubble hugs the plating: any larger and it reads as a stray ellipse
+  const rx = (max[0] - min[0]) / 2 + 0.28;
+  const ry = (max[1] - min[1]) / 2 + 0.24;
+  const rz = (max[2] - min[2]) / 2 + 0.28;
+  const seg = 30;
+  return Array.from({ length: seg }, (_, i) => {
+    const a = (i / seg) * Math.PI * 2;
+    if (variant === 0) {
+      return [centre[0] + Math.cos(a) * rx, centre[1] + Math.sin(a) * ry * 0.18, centre[2] + Math.sin(a) * rz];
+    }
+    return [centre[0] + Math.cos(a) * rx * 0.9, centre[1] + Math.sin(a) * ry, centre[2] + Math.sin(a) * rz * 0.55];
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* single-module portraits                                            */
+/* ------------------------------------------------------------------ */
+
+export function buildPartMesh(part: Part, options: BuildMeshOptions = {}): ShipMesh {
+  const style = resolveStyle(options.style);
+  const span = part.geometry.span;
+  const ctx: SpecCtx = {
+    podWidth: 1.0 + span * 0.06,
+    halfHeight: 0.62,
+    style,
+    density: "high",
+  };
+  const spec = moduleSpec(part, ctx, { legLength: 1.0, reactorLength: 1.1 });
+  const bounds = boundsOf([{ partId: part.id, partName: part.name, category: part.category, faces: spec.faces }]);
+  return {
+    parts: [{ partId: part.id, partName: part.name, category: part.category, faces: spec.faces }],
     plumes: [],
-    bounds: { min, max },
-    groundY: -2,
+    bounds,
+    groundY: bounds.min[1] - 0.4,
     moduleCount: 1,
+    style,
+    attachments: [],
+    flourishes: [],
+    hasShield: false,
   };
 }
 
 export const categoryAccent = (category: PartCategoryId): string =>
   categoryById[category]?.accent ?? "#38bdf8";
-
-export function partByIdSafe(id: string): Part | undefined {
-  return partById[id];
-}

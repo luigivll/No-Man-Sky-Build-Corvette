@@ -9,6 +9,7 @@ import {
   inventorySlots,
 } from "@/lib/build";
 import { blueprints, blueprintsFile } from "@/lib/data";
+import { styleById } from "@/lib/shipStyles";
 
 export const metadata = {
   title: "Iconic Ship Blueprints | NMS Corvette Shipyard",
@@ -31,6 +32,7 @@ export default function BlueprintsPage() {
   });
 
   const franchises = [...new Set(blueprints.map((b) => b.franchise))];
+  const families = [...new Set(blueprints.map((b) => b.style ?? "corvette"))];
 
   return (
     <div className="space-y-6">
@@ -48,6 +50,25 @@ export default function BlueprintsPage() {
           modules, quantities, notes on how to make the silhouette read, an
           estimated Unit cost and the Nanite bill for taking it to S-class.
         </p>
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          {families.map((family) => {
+            const shipStyle = styleById(family);
+            const count = blueprints.filter((b) => (b.style ?? "corvette") === family).length;
+            return (
+              <span
+                key={family}
+                className="flex items-center gap-1.5 border px-2 py-1 font-mono text-[0.6rem] uppercase tracking-wider"
+                style={{
+                  borderColor: `${shipStyle.emissive}44`,
+                  color: shipStyle.emissive,
+                }}
+              >
+                <span className="h-2.5 w-2.5" style={{ background: shipStyle.hullBase }} />
+                {count} x {shipStyle.label}
+              </span>
+            );
+          })}
+        </div>
         <p className="mt-3 max-w-3xl text-[0.7rem] leading-relaxed text-slate-500">
           {blueprintsFile.meta.disclaimer}
         </p>
@@ -79,6 +100,19 @@ export default function BlueprintsPage() {
                   <p className="hud-mono text-[0.68rem] text-slate-400">
                     {blueprint.designation}
                   </p>
+                  <span
+                    className="mt-1.5 inline-flex items-center gap-1.5 border px-1.5 py-0.5 font-mono text-[0.55rem] uppercase tracking-wider"
+                    style={{
+                      borderColor: `${styleById(blueprint.style).emissive}55`,
+                      color: styleById(blueprint.style).emissive,
+                    }}
+                  >
+                    <span
+                      className="h-2 w-2"
+                      style={{ background: styleById(blueprint.style).hullBase }}
+                    />
+                    {styleById(blueprint.style).label}
+                  </span>
                 </div>
                 <span
                   className="grid h-10 w-10 shrink-0 place-items-center border font-display text-sm font-black"

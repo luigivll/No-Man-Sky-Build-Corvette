@@ -11,18 +11,18 @@ import type { Part } from "@/lib/types";
 export default function PartThumb({
   part,
   size = 76,
-  palette = "gunmetal",
+  style = "corvette",
 }: {
   part: Part;
   size?: number;
-  palette?: string;
+  style?: string;
 }) {
   const scene = useMemo(() => {
-    const mesh = buildPartMesh(part, { palette });
+    const mesh = buildPartMesh(part, { style });
     return projectScene(mesh, { yaw: -0.75, pitch: -0.4, zoom: 0.95 }, size, size, {
       padding: 1.35,
     });
-  }, [part, size, palette]);
+  }, [part, size, style]);
 
   return (
     <div
@@ -41,16 +41,20 @@ export default function PartThumb({
         aria-hidden="true"
         className="block"
       >
-        {scene.faces.map((face, index) => (
-          <polygon
-            key={index}
-            points={face.points}
-            fill={face.fill}
-            opacity={face.opacity}
-            stroke="rgba(3,6,12,0.45)"
-            strokeWidth={0.3}
-          />
-        ))}
+        {scene.faces.map((face, index) => {
+          const isGlow = face.kind === "emissive" || face.kind === "trim";
+          return (
+            <polygon
+              key={index}
+              points={face.points}
+              fill={face.fill}
+              opacity={face.opacity}
+              stroke={isGlow ? face.fill : "rgba(3,6,12,0.45)"}
+              strokeWidth={isGlow ? 1.6 : 0.3}
+              strokeOpacity={isGlow ? 0.5 : 1}
+            />
+          );
+        })}
       </svg>
     </div>
   );

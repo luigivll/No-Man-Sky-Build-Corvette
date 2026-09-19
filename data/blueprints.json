@@ -15,26 +15,83 @@
       "franchise": "Star Wars",
       "classification": "YT-series light freighter",
       "role": "Smuggler / Fast Freighter",
+      "style": "corvette",
       "difficulty": "A",
       "accent": "#d8b26a",
       "accent2": "#4b6b8a",
       "blurb": "A flattened saucer with an offset bridge and a pair of wide rear thruster banks. The whole trick is keeping the hull low and wide while hiding the landing bay inside.",
       "signatureLine": "She may not look like much, but she's got it where it counts.",
       "parts": [
-        { "id": "cockpit-ambassador", "qty": 1, "note": "Offset bridge pod on the port rim - the single most important piece for the Falcon read." },
-        { "id": "hab-ambassador", "qty": 3, "note": "Three flat Hab sections form the main saucer mass." },
-        { "id": "walkway-ambassador", "qty": 2, "note": "Low corridors to widen the disc without adding height." },
-        { "id": "bay-internal", "qty": 1, "note": "Internal hangar keeps the underside perfectly smooth." },
-        { "id": "engine-main-pyrodrive", "qty": 2, "note": "Twin Pyrodrive main engines = the two big rear nozzles." },
-        { "id": "engine-light-widebody", "qty": 2, "note": "Widebody thruster pods flank the mains for the flattened thruster bank." },
-        { "id": "shield-highenergy", "qty": 1 },
-        { "id": "reactor-ceto", "qty": 1, "note": "Shield reactor: she survives what she cannot outrun." },
-        { "id": "weapon-photon", "qty": 2, "note": "Quad-laser look - mount both on the dorsal saucer." },
-        { "id": "weapon-torpedo", "qty": 1, "note": "Concussion missile feel: hidden behind the boarding ramp." },
-        { "id": "gear-magfield", "qty": 2, "note": "Hover pads instead of legs keeps the disc silhouette flat." },
-        { "id": "wing-hardframe", "qty": 2, "note": "Armour cowlings bowed around the saucer rim." },
-        { "id": "wing-firebox", "qty": 2, "note": "Fairings clad the engine block." },
-        { "id": "wing-vesper-diffuser", "qty": 2, "note": "Optional vent plates to smooth the hull joins.", "optional": true }
+        {
+          "id": "cockpit-ambassador",
+          "qty": 1,
+          "note": "Offset bridge pod on the port rim - the single most important piece for the Falcon read."
+        },
+        {
+          "id": "hab-ambassador",
+          "qty": 3,
+          "note": "Three flat Hab sections form the main saucer mass."
+        },
+        {
+          "id": "walkway-ambassador",
+          "qty": 2,
+          "note": "Low corridors to widen the disc without adding height."
+        },
+        {
+          "id": "bay-internal",
+          "qty": 1,
+          "note": "Internal hangar keeps the underside perfectly smooth."
+        },
+        {
+          "id": "engine-main-pyrodrive",
+          "qty": 2,
+          "note": "Twin Pyrodrive main engines = the two big rear nozzles."
+        },
+        {
+          "id": "engine-light-widebody",
+          "qty": 2,
+          "note": "Widebody thruster pods flank the mains for the flattened thruster bank."
+        },
+        {
+          "id": "shield-highenergy",
+          "qty": 1
+        },
+        {
+          "id": "reactor-ceto",
+          "qty": 1,
+          "note": "Shield reactor: she survives what she cannot outrun."
+        },
+        {
+          "id": "weapon-photon",
+          "qty": 2,
+          "note": "Quad-laser look - mount both on the dorsal saucer."
+        },
+        {
+          "id": "weapon-torpedo",
+          "qty": 1,
+          "note": "Concussion missile feel: hidden behind the boarding ramp."
+        },
+        {
+          "id": "gear-magfield",
+          "qty": 2,
+          "note": "Hover pads instead of legs keeps the disc silhouette flat."
+        },
+        {
+          "id": "wing-hardframe",
+          "qty": 2,
+          "note": "Armour cowlings bowed around the saucer rim."
+        },
+        {
+          "id": "wing-firebox",
+          "qty": 2,
+          "note": "Fairings clad the engine block."
+        },
+        {
+          "id": "wing-vesper-diffuser",
+          "qty": 2,
+          "note": "Optional vent plates to smooth the hull joins.",
+          "optional": true
+        }
       ],
       "buildTips": [
         "Build the hull 1 floor, 2 at most. The Falcon must read as a pancake from above.",
@@ -51,23 +108,69 @@
       "franchise": "Star Wars",
       "classification": "T-65B space superiority starfighter",
       "role": "Dogfighter",
+      "style": "corvette",
       "difficulty": "B",
       "accent": "#e2e8f0",
       "accent2": "#e0663f",
       "blurb": "Four S-Foils in a cross, four slim thruster pods, four wing-tip cannons. Small, cheap, absurdly fast to fly in third person.",
       "signatureLine": "Lock S-foils in attack position.",
       "parts": [
-        { "id": "cockpit-titan", "qty": 1, "note": "Arrowhead nose reads as the X-Wing's pointed fuselage." },
-        { "id": "wing-arcadia-sfoil", "qty": 4, "note": "The whole ship. Two upper, two lower, splayed at 30 degrees." },
-        { "id": "engine-light-arcadia", "qty": 4, "note": "One slim sublight thruster at the root of each foil." },
-        { "id": "engine-main-arcadia", "qty": 1, "note": "Central Arcadia booster as the main powerplant - salvage-only, but it is the only way to keep the four thruster pods propelling a hull this small." },
-        { "id": "weapon-photon", "qty": 4, "note": "Wing-tip cannons. Tip-mount them, never centre-mount." },
-        { "id": "shield-aeron", "qty": 1, "note": "Exotic powershield to survive a TIE swarm." },
-        { "id": "reactor-azimuth", "qty": 1, "note": "Pulse engine reactor for boost-heavy flying." },
-        { "id": "hab-ambassador", "qty": 1, "note": "Doubles as the astromech socket and your only inventory space." },
-        { "id": "bay-ambassador", "qty": 1, "note": "Flush bay keeps the fuselage line clean." },
-        { "id": "gear-standard", "qty": 2, "note": "Slim skids, one under each lower foil." },
-        { "id": "wing-speedbird", "qty": 2, "note": "Winglet detail on the upper foils.", "optional": true }
+        {
+          "id": "cockpit-titan",
+          "qty": 1,
+          "note": "Arrowhead nose reads as the X-Wing's pointed fuselage."
+        },
+        {
+          "id": "wing-arcadia-sfoil",
+          "qty": 4,
+          "note": "The whole ship. Two upper, two lower, splayed at 30 degrees."
+        },
+        {
+          "id": "engine-light-arcadia",
+          "qty": 4,
+          "note": "One slim sublight thruster at the root of each foil."
+        },
+        {
+          "id": "engine-main-arcadia",
+          "qty": 1,
+          "note": "Central Arcadia booster as the main powerplant - salvage-only, but it is the only way to keep the four thruster pods propelling a hull this small."
+        },
+        {
+          "id": "weapon-photon",
+          "qty": 4,
+          "note": "Wing-tip cannons. Tip-mount them, never centre-mount."
+        },
+        {
+          "id": "shield-aeron",
+          "qty": 1,
+          "note": "Exotic powershield to survive a TIE swarm."
+        },
+        {
+          "id": "reactor-azimuth",
+          "qty": 1,
+          "note": "Pulse engine reactor for boost-heavy flying."
+        },
+        {
+          "id": "hab-ambassador",
+          "qty": 1,
+          "note": "Doubles as the astromech socket and your only inventory space."
+        },
+        {
+          "id": "bay-ambassador",
+          "qty": 1,
+          "note": "Flush bay keeps the fuselage line clean."
+        },
+        {
+          "id": "gear-standard",
+          "qty": 2,
+          "note": "Slim skids, one under each lower foil."
+        },
+        {
+          "id": "wing-speedbird",
+          "qty": 2,
+          "note": "Winglet detail on the upper foils.",
+          "optional": true
+        }
       ],
       "buildTips": [
         "Symmetry is mandatory here - the cross pattern is the entire silhouette.",
@@ -84,28 +187,90 @@
       "franchise": "Star Wars",
       "classification": "Imperial I-class Star Destroyer",
       "role": "Capital Ship Replica",
+      "style": "corvette",
       "difficulty": "S",
       "accent": "#8fa6b8",
       "accent2": "#1f6f78",
       "blurb": "A 3-floor wedge the size of a small freighter. You are building the whole dagger shape out of Habs and Walkways, then bolting turrets down both edges.",
       "signatureLine": "Prepare to fire all batteries.",
       "parts": [
-        { "id": "cockpit-titan", "qty": 1, "note": "The bridge tower - stack it on the highest dorsal Hab." },
-        { "id": "hab-titan", "qty": 6, "note": "The wedge body. Widen as you go aft." },
-        { "id": "walkway-titan", "qty": 6, "note": "Dorsal spine and the tapered nose point." },
-        { "id": "walkway-thunderbird", "qty": 2, "note": "Engine block transitions.", "optional": true },
-        { "id": "bay-titan", "qty": 1 },
-        { "id": "bay-internal", "qty": 1, "note": "Second bay hidden in the ventral trench." },
-        { "id": "reactor-zenith", "qty": 2, "note": "Long-range capitol reactor banks." },
-        { "id": "reactor-ceto", "qty": 1 },
-        { "id": "engine-main-titan", "qty": 3, "note": "Triple bell nozzles across the stern - the classic rear wall of light." },
-        { "id": "engine-light-twinecho", "qty": 2 },
-        { "id": "weapon-cyclotron", "qty": 4, "note": "Broadside turrets along the dorsal edges." },
-        { "id": "weapon-phasebeam", "qty": 2, "note": "Ventral trench guns." },
-        { "id": "shield-highenergy", "qty": 2 },
-        { "id": "wing-hardframe", "qty": 4, "note": "Edge plating to sharpen the wedge." },
-        { "id": "wing-titan", "qty": 4, "note": "Wing modules flattened into hull edges." },
-        { "id": "gear-heavy", "qty": 4, "note": "Nothing lighter will hold this up." }
+        {
+          "id": "cockpit-titan",
+          "qty": 1,
+          "note": "The bridge tower - stack it on the highest dorsal Hab."
+        },
+        {
+          "id": "hab-titan",
+          "qty": 6,
+          "note": "The wedge body. Widen as you go aft."
+        },
+        {
+          "id": "walkway-titan",
+          "qty": 6,
+          "note": "Dorsal spine and the tapered nose point."
+        },
+        {
+          "id": "walkway-thunderbird",
+          "qty": 2,
+          "note": "Engine block transitions.",
+          "optional": true
+        },
+        {
+          "id": "bay-titan",
+          "qty": 1
+        },
+        {
+          "id": "bay-internal",
+          "qty": 1,
+          "note": "Second bay hidden in the ventral trench."
+        },
+        {
+          "id": "reactor-zenith",
+          "qty": 2,
+          "note": "Long-range capitol reactor banks."
+        },
+        {
+          "id": "reactor-ceto",
+          "qty": 1
+        },
+        {
+          "id": "engine-main-titan",
+          "qty": 3,
+          "note": "Triple bell nozzles across the stern - the classic rear wall of light."
+        },
+        {
+          "id": "engine-light-twinecho",
+          "qty": 2
+        },
+        {
+          "id": "weapon-cyclotron",
+          "qty": 4,
+          "note": "Broadside turrets along the dorsal edges."
+        },
+        {
+          "id": "weapon-phasebeam",
+          "qty": 2,
+          "note": "Ventral trench guns."
+        },
+        {
+          "id": "shield-highenergy",
+          "qty": 2
+        },
+        {
+          "id": "wing-hardframe",
+          "qty": 4,
+          "note": "Edge plating to sharpen the wedge."
+        },
+        {
+          "id": "wing-titan",
+          "qty": 4,
+          "note": "Wing modules flattened into hull edges."
+        },
+        {
+          "id": "gear-heavy",
+          "qty": 4,
+          "note": "Nothing lighter will hold this up."
+        }
       ],
       "buildTips": [
         "Build the wedge from the stern forward: widest hab cluster aft, tapering walkways to a point at the nose.",
@@ -128,27 +293,83 @@
       "blurb": "Blunt nose, boxy tail, chin ramp and a big dorsal engine block. The ugly-but-perfect utilitarian read - and it flies superbly because you barely added any wings.",
       "signatureLine": "Pelican inbound, prepare for dust-off.",
       "parts": [
-        { "id": "cockpit-thunderbird", "qty": 1, "note": "Blunt industrial flight deck, twin-seat look." },
-        { "id": "hab-thunderbird", "qty": 2, "note": "The troop compartment - armoured plating look." },
-        { "id": "walkway-thunderbird", "qty": 2, "note": "Ribbed tail section." },
-        { "id": "bay-thunderbird", "qty": 1, "note": "The chin ramp. Mount it as low and forward as you can." },
-        { "id": "engine-main-thunderbird", "qty": 2, "note": "Twin dorsal booster block." },
-        { "id": "engine-light-twinecho", "qty": 2, "note": "Vectoring jets below the engine block." },
-        { "id": "weapon-torpedo", "qty": 2, "note": "Wing-mounted launcher pods." },
-        { "id": "weapon-photon", "qty": 1, "note": "Chin gun." },
-        { "id": "shield-deflector", "qty": 1 },
-        { "id": "reactor-azimuth", "qty": 1 },
-        { "id": "wing-rockhopper", "qty": 2, "note": "Stubby boxy wings with the lift pods." },
-        { "id": "wing-firebox", "qty": 2, "note": "Fairings around the engine block." },
-        { "id": "gear-heavy", "qty": 2, "note": "Heavy struts, nose gear forward of the ramp." },
-        { "id": "gear-thunderbird", "qty": 1, "note": "Third contact point under the tail.", "optional": true }
+        {
+          "id": "cockpit-thunderbird",
+          "qty": 1,
+          "note": "Blunt industrial flight deck, twin-seat look."
+        },
+        {
+          "id": "hab-thunderbird",
+          "qty": 2,
+          "note": "The troop compartment - armoured plating look."
+        },
+        {
+          "id": "walkway-thunderbird",
+          "qty": 2,
+          "note": "Ribbed tail section."
+        },
+        {
+          "id": "bay-thunderbird",
+          "qty": 1,
+          "note": "The chin ramp. Mount it as low and forward as you can."
+        },
+        {
+          "id": "engine-main-thunderbird",
+          "qty": 2,
+          "note": "Twin dorsal booster block."
+        },
+        {
+          "id": "engine-light-twinecho",
+          "qty": 2,
+          "note": "Vectoring jets below the engine block."
+        },
+        {
+          "id": "weapon-torpedo",
+          "qty": 2,
+          "note": "Wing-mounted launcher pods."
+        },
+        {
+          "id": "weapon-photon",
+          "qty": 1,
+          "note": "Chin gun."
+        },
+        {
+          "id": "shield-deflector",
+          "qty": 1
+        },
+        {
+          "id": "reactor-azimuth",
+          "qty": 1
+        },
+        {
+          "id": "wing-rockhopper",
+          "qty": 2,
+          "note": "Stubby boxy wings with the lift pods."
+        },
+        {
+          "id": "wing-firebox",
+          "qty": 2,
+          "note": "Fairings around the engine block."
+        },
+        {
+          "id": "gear-heavy",
+          "qty": 2,
+          "note": "Heavy struts, nose gear forward of the ramp."
+        },
+        {
+          "id": "gear-thunderbird",
+          "qty": 1,
+          "note": "Third contact point under the tail.",
+          "optional": true
+        }
       ],
       "buildTips": [
         "Keep it 2 floors with a chunky, boxy rear third - the Pelican is not sleek.",
         "The chin ramp wants to sit slightly proud of the nose, not flush.",
         "Mount both torpedo pods on the same wing line for the classic silhouette.",
         "Great ship to actually fly: the short wings keep the hitbox tight."
-      ]
+      ],
+      "style": "pirate"
     },
     {
       "id": "rocinante",
@@ -164,27 +385,79 @@
       "blurb": "A hard-edged brick with a spinal rail of weapons and one absurdly powerful engine. The most 'it just works' build in the hangar - basically a proper Corvette with a rocket bolted on the back.",
       "signatureLine": "The Rocinante is a legitimate salvage.",
       "parts": [
-        { "id": "cockpit-titan", "qty": 1, "note": "Nose bridge, slightly offset up for the Roci's raised cockpit." },
-        { "id": "hab-titan", "qty": 2 },
-        { "id": "walkway-titan", "qty": 2 },
-        { "id": "bay-internal", "qty": 1, "note": "The Roci's belly hangar - invisible from outside." },
-        { "id": "engine-main-pyrodrive", "qty": 1, "note": "Single Epstein-style main drive. The most important part on the ship." },
-        { "id": "engine-light-twinecho", "qty": 2, "note": "Vectoring attitude jets." },
-        { "id": "reactor-azimuth", "qty": 1 },
-        { "id": "weapon-infraknife", "qty": 2, "note": "Rapid-fire PDC batteries, one per flank." },
-        { "id": "weapon-torpedo", "qty": 2, "note": "Dorsal torpedo tubes." },
-        { "id": "shield-defencefield", "qty": 1 },
-        { "id": "wing-vesper-diffuser", "qty": 2, "note": "Radiator plates - the Roci spins them out under load." },
-        { "id": "wing-speedbird", "qty": 2 },
-        { "id": "wing-hardframe", "qty": 2, "note": "Shoulder plating." },
-        { "id": "gear-hydraulic", "qty": 2, "note": "Tall legs - leaves room for a refiner underneath." }
+        {
+          "id": "cockpit-titan",
+          "qty": 1,
+          "note": "Nose bridge, slightly offset up for the Roci's raised cockpit."
+        },
+        {
+          "id": "hab-titan",
+          "qty": 2
+        },
+        {
+          "id": "walkway-titan",
+          "qty": 2
+        },
+        {
+          "id": "bay-internal",
+          "qty": 1,
+          "note": "The Roci's belly hangar - invisible from outside."
+        },
+        {
+          "id": "engine-main-pyrodrive",
+          "qty": 1,
+          "note": "Single Epstein-style main drive. The most important part on the ship."
+        },
+        {
+          "id": "engine-light-twinecho",
+          "qty": 2,
+          "note": "Vectoring attitude jets."
+        },
+        {
+          "id": "reactor-azimuth",
+          "qty": 1
+        },
+        {
+          "id": "weapon-infraknife",
+          "qty": 2,
+          "note": "Rapid-fire PDC batteries, one per flank."
+        },
+        {
+          "id": "weapon-torpedo",
+          "qty": 2,
+          "note": "Dorsal torpedo tubes."
+        },
+        {
+          "id": "shield-defencefield",
+          "qty": 1
+        },
+        {
+          "id": "wing-vesper-diffuser",
+          "qty": 2,
+          "note": "Radiator plates - the Roci spins them out under load."
+        },
+        {
+          "id": "wing-speedbird",
+          "qty": 2
+        },
+        {
+          "id": "wing-hardframe",
+          "qty": 2,
+          "note": "Shoulder plating."
+        },
+        {
+          "id": "gear-hydraulic",
+          "qty": 2,
+          "note": "Tall legs - leaves room for a refiner underneath."
+        }
       ],
       "buildTips": [
         "Two floors, long and narrow. Resist the urge to widen it.",
         "Keep the weapon bays symmetrical down the flanks - they are the ship's identity.",
         "One main engine, one nozzle. Do not twin it.",
         "This is the best all-round 'actually usable in combat' blueprint in the hangar."
-      ]
+      ],
+      "style": "corvette"
     },
     {
       "id": "uss-enterprise",
@@ -200,27 +473,83 @@
       "blurb": "Saucer, neck, secondary hull, two nacelles on pylons. The hardest silhouette in the hangar because NMS has no saucer module - you cheat with cowlings and diffusers, and it works better than it has any right to.",
       "signatureLine": "Space: the final frontier.",
       "parts": [
-        { "id": "cockpit-ambassador", "qty": 1, "note": "Set into the top of the saucer as the bridge dome." },
-        { "id": "wing-hardframe", "qty": 4, "note": "Bowed around the nose in a circle to fake the primary saucer." },
-        { "id": "wing-vesper-diffuser", "qty": 4, "note": "Fill the saucer gaps and clad the secondary hull." },
-        { "id": "hab-ambassador", "qty": 3, "note": "Saucer mass plus the engineering hull." },
-        { "id": "walkway-ambassador", "qty": 3, "note": "Two for the neck, one for the pylon spar." },
-        { "id": "bay-ambassador", "qty": 1 },
-        { "id": "reactor-zenith", "qty": 2, "note": "Warp reactor. Zenith is the correct choice here, thematically and mechanically." },
-        { "id": "engine-main-ambassador", "qty": 2, "note": "Mounted on the pylons as nacelles." },
-        { "id": "engine-light-arcadia", "qty": 2, "note": "Nacelle end caps." },
-        { "id": "weapon-phasebeam", "qty": 2, "note": "Phaser banks on the saucer rim." },
-        { "id": "shield-deflector", "qty": 2, "note": "Deflector dish. Yes, really called that." },
-        { "id": "wing-ambassador", "qty": 2, "note": "Nacelle pylons." },
-        { "id": "gear-standard", "qty": 2 },
-        { "id": "gear-magfield", "qty": 1, "note": "Third contact point hidden under the secondary hull.", "optional": true }
+        {
+          "id": "cockpit-ambassador",
+          "qty": 1,
+          "note": "Set into the top of the saucer as the bridge dome."
+        },
+        {
+          "id": "wing-hardframe",
+          "qty": 4,
+          "note": "Bowed around the nose in a circle to fake the primary saucer."
+        },
+        {
+          "id": "wing-vesper-diffuser",
+          "qty": 4,
+          "note": "Fill the saucer gaps and clad the secondary hull."
+        },
+        {
+          "id": "hab-ambassador",
+          "qty": 3,
+          "note": "Saucer mass plus the engineering hull."
+        },
+        {
+          "id": "walkway-ambassador",
+          "qty": 3,
+          "note": "Two for the neck, one for the pylon spar."
+        },
+        {
+          "id": "bay-ambassador",
+          "qty": 1
+        },
+        {
+          "id": "reactor-zenith",
+          "qty": 2,
+          "note": "Warp reactor. Zenith is the correct choice here, thematically and mechanically."
+        },
+        {
+          "id": "engine-main-ambassador",
+          "qty": 2,
+          "note": "Mounted on the pylons as nacelles."
+        },
+        {
+          "id": "engine-light-arcadia",
+          "qty": 2,
+          "note": "Nacelle end caps."
+        },
+        {
+          "id": "weapon-phasebeam",
+          "qty": 2,
+          "note": "Phaser banks on the saucer rim."
+        },
+        {
+          "id": "shield-deflector",
+          "qty": 2,
+          "note": "Deflector dish. Yes, really called that."
+        },
+        {
+          "id": "wing-ambassador",
+          "qty": 2,
+          "note": "Nacelle pylons."
+        },
+        {
+          "id": "gear-standard",
+          "qty": 2
+        },
+        {
+          "id": "gear-magfield",
+          "qty": 1,
+          "note": "Third contact point hidden under the secondary hull.",
+          "optional": true
+        }
       ],
       "buildTips": [
         "Nacelles go up and back at roughly 30 degrees - flat nacelles read as a cargo ship instead.",
         "Keep the saucer 1 floor. Any thicker and the neck cannot support the look.",
         "Zenith reactors give you the absurd warp range an explorer deserves.",
         "This build eats parts fast. Trim optional plating first if you approach the 160 cap."
-      ]
+      ],
+      "style": "solar"
     },
     {
       "id": "serenity",
@@ -236,28 +565,85 @@
       "blurb": "Neck forward, fat tail, spinny engine thing at the back. A perfect 'flying base' Corvette: hab-heavy, walkway-rich, and legitimately pleasant to live in.",
       "signatureLine": "I am a leaf on the wind.",
       "parts": [
-        { "id": "cockpit-ambassador", "qty": 1, "note": "Small bridge on top of an extended neck." },
-        { "id": "walkway-titan", "qty": 3, "note": "The neck. Long, thin, forward of the body." },
-        { "id": "hab-thunderbird", "qty": 2, "note": "The fat mid-body hold." },
-        { "id": "hab-titan", "qty": 1 },
-        { "id": "walkway-thunderbird", "qty": 2 },
-        { "id": "bay-titan", "qty": 1, "note": "The rear cargo ramp." },
-        { "id": "engine-main-thunderbird", "qty": 1, "note": "The big rear engine that spins in atmosphere." },
-        { "id": "engine-light-twinecho", "qty": 2, "note": "Side thruster pods." },
-        { "id": "reactor-azimuth", "qty": 1 },
-        { "id": "shield-ion", "qty": 1 },
-        { "id": "weapon-photon", "qty": 2, "note": "Dorsal defence guns." },
-        { "id": "wing-rockhopper", "qty": 2, "note": "The two rear fins." },
-        { "id": "wing-firebox", "qty": 2, "note": "Heat shielding on the tail." },
-        { "id": "gear-hydraulic", "qty": 3, "note": "Three tall legs - Serenity lands on legs, always." },
-        { "id": "wing-speedbird", "qty": 2, "optional": true }
+        {
+          "id": "cockpit-ambassador",
+          "qty": 1,
+          "note": "Small bridge on top of an extended neck."
+        },
+        {
+          "id": "walkway-titan",
+          "qty": 3,
+          "note": "The neck. Long, thin, forward of the body."
+        },
+        {
+          "id": "hab-thunderbird",
+          "qty": 2,
+          "note": "The fat mid-body hold."
+        },
+        {
+          "id": "hab-titan",
+          "qty": 1
+        },
+        {
+          "id": "walkway-thunderbird",
+          "qty": 2
+        },
+        {
+          "id": "bay-titan",
+          "qty": 1,
+          "note": "The rear cargo ramp."
+        },
+        {
+          "id": "engine-main-thunderbird",
+          "qty": 1,
+          "note": "The big rear engine that spins in atmosphere."
+        },
+        {
+          "id": "engine-light-twinecho",
+          "qty": 2,
+          "note": "Side thruster pods."
+        },
+        {
+          "id": "reactor-azimuth",
+          "qty": 1
+        },
+        {
+          "id": "shield-ion",
+          "qty": 1
+        },
+        {
+          "id": "weapon-photon",
+          "qty": 2,
+          "note": "Dorsal defence guns."
+        },
+        {
+          "id": "wing-rockhopper",
+          "qty": 2,
+          "note": "The two rear fins."
+        },
+        {
+          "id": "wing-firebox",
+          "qty": 2,
+          "note": "Heat shielding on the tail."
+        },
+        {
+          "id": "gear-hydraulic",
+          "qty": 3,
+          "note": "Three tall legs - Serenity lands on legs, always."
+        },
+        {
+          "id": "wing-speedbird",
+          "qty": 2,
+          "optional": true
+        }
       ],
       "buildTips": [
         "The neck is the whole silhouette: 3 walkways forward of the hab stack, nothing else.",
         "Three legs, evenly spaced. It should look like it squats when parked.",
         "Prioritise Habs over weapons - this is a live-aboard ship, so max your inventory slots.",
         "Add the refiner and an indoor bed once built; this is the best 'flying base' blueprint."
-      ]
+      ],
+      "style": "solar"
     },
     {
       "id": "viper-mk2",
@@ -267,24 +653,68 @@
       "franchise": "Battlestar Galactica",
       "classification": "Mk II Viper space superiority fighter",
       "role": "Interceptor",
+      "style": "sentinel",
       "difficulty": "B",
       "accent": "#c9b48a",
       "accent2": "#5a6b7a",
       "blurb": "Three engines, three kinetic cannons, two stubby wings. The smallest viable Corvette in the hangar and the fastest thing you can legally build.",
       "signatureLine": "Action stations, action stations.",
       "parts": [
-        { "id": "cockpit-titan", "qty": 1 },
-        { "id": "engine-main-pyrodrive", "qty": 2, "note": "Twin main drives with the flame nozzles." },
-        { "id": "engine-light-arcadia", "qty": 2, "note": "Wing-root thrusters either side of the centre nozzle - the Viper's unmistakable triple cluster." },
-        { "id": "weapon-deadeye", "qty": 3, "note": "Wing-tip + nose kinetic guns. Deadeye is the only cannon that reads as a slug-thrower." },
-        { "id": "shield-aeron", "qty": 1 },
-        { "id": "reactor-medusa", "qty": 1, "note": "Manoeuvrability reactor. Nothing else makes sense on a Viper." },
-        { "id": "wing-arcadia-sfoil", "qty": 2, "note": "Short swept foils." },
-        { "id": "wing-speedbird", "qty": 2 },
-        { "id": "hab-ambassador", "qty": 1, "note": "Minimum legal habitation - keeps the mass down." },
-        { "id": "bay-internal", "qty": 1 },
-        { "id": "gear-standard", "qty": 3 },
-        { "id": "walkway-ambassador", "qty": 1, "optional": true }
+        {
+          "id": "cockpit-titan",
+          "qty": 1
+        },
+        {
+          "id": "engine-main-pyrodrive",
+          "qty": 2,
+          "note": "Twin main drives with the flame nozzles."
+        },
+        {
+          "id": "engine-light-arcadia",
+          "qty": 2,
+          "note": "Wing-root thrusters either side of the centre nozzle - the Viper's unmistakable triple cluster."
+        },
+        {
+          "id": "weapon-deadeye",
+          "qty": 3,
+          "note": "Wing-tip + nose kinetic guns. Deadeye is the only cannon that reads as a slug-thrower."
+        },
+        {
+          "id": "shield-aeron",
+          "qty": 1
+        },
+        {
+          "id": "reactor-medusa",
+          "qty": 1,
+          "note": "Manoeuvrability reactor. Nothing else makes sense on a Viper."
+        },
+        {
+          "id": "wing-arcadia-sfoil",
+          "qty": 2,
+          "note": "Short swept foils."
+        },
+        {
+          "id": "wing-speedbird",
+          "qty": 2
+        },
+        {
+          "id": "hab-ambassador",
+          "qty": 1,
+          "note": "Minimum legal habitation - keeps the mass down."
+        },
+        {
+          "id": "bay-internal",
+          "qty": 1
+        },
+        {
+          "id": "gear-standard",
+          "qty": 3
+        },
+        {
+          "id": "walkway-ambassador",
+          "qty": 1,
+          "optional": true
+        }
       ],
       "buildTips": [
         "Under 30 parts total. If it starts looking bulky, you have overbuilt.",
@@ -307,27 +737,78 @@
       "blurb": "Sleek swept hull, deep-set bridge, twin engine pods and a dorsal wing pair. A very natural fit for NMS parts - the parts pool basically wants to build this ship.",
       "signatureLine": "The Normandy is the tip of the spear.",
       "parts": [
-        { "id": "cockpit-ambassador", "qty": 1, "note": "Deep-set bridge, set back from the nose tip." },
-        { "id": "hab-titan", "qty": 2 },
-        { "id": "walkway-titan", "qty": 2 },
-        { "id": "bay-internal", "qty": 1, "note": "The Kodiak hangar. Keep it fully enclosed." },
-        { "id": "engine-main-arcadia", "qty": 2, "note": "Twin Arcadia boosters = the SR-2's engine pods. Salvage-only, but worth the hunt." },
-        { "id": "engine-light-twinecho", "qty": 2 },
-        { "id": "reactor-zenith", "qty": 1, "note": "Tantalus drive core: enormous range, quiet running." },
-        { "id": "weapon-infraknife", "qty": 2, "note": "Thanix-style spinal cannon read." },
-        { "id": "weapon-torpedo", "qty": 2, "note": "Javelin torpedo bays." },
-        { "id": "shield-highenergy", "qty": 1 },
-        { "id": "wing-vesper-diffuser", "qty": 2, "note": "The swept dorsal wings." },
-        { "id": "wing-firebox", "qty": 2 },
-        { "id": "gear-magfield", "qty": 2 },
-        { "id": "wing-speedbird", "qty": 2, "optional": true }
+        {
+          "id": "cockpit-ambassador",
+          "qty": 1,
+          "note": "Deep-set bridge, set back from the nose tip."
+        },
+        {
+          "id": "hab-titan",
+          "qty": 2
+        },
+        {
+          "id": "walkway-titan",
+          "qty": 2
+        },
+        {
+          "id": "bay-internal",
+          "qty": 1,
+          "note": "The Kodiak hangar. Keep it fully enclosed."
+        },
+        {
+          "id": "engine-main-arcadia",
+          "qty": 2,
+          "note": "Twin Arcadia boosters = the SR-2's engine pods. Salvage-only, but worth the hunt."
+        },
+        {
+          "id": "engine-light-twinecho",
+          "qty": 2
+        },
+        {
+          "id": "reactor-zenith",
+          "qty": 1,
+          "note": "Tantalus drive core: enormous range, quiet running."
+        },
+        {
+          "id": "weapon-infraknife",
+          "qty": 2,
+          "note": "Thanix-style spinal cannon read."
+        },
+        {
+          "id": "weapon-torpedo",
+          "qty": 2,
+          "note": "Javelin torpedo bays."
+        },
+        {
+          "id": "shield-highenergy",
+          "qty": 1
+        },
+        {
+          "id": "wing-vesper-diffuser",
+          "qty": 2,
+          "note": "The swept dorsal wings."
+        },
+        {
+          "id": "wing-firebox",
+          "qty": 2
+        },
+        {
+          "id": "gear-magfield",
+          "qty": 2
+        },
+        {
+          "id": "wing-speedbird",
+          "qty": 2,
+          "optional": true
+        }
       ],
       "buildTips": [
         "Long and low: 2 floors, narrow waist, tapered nose.",
         "Set the cockpit one part back from the very tip - then plate over the tip for the SR-2's blunt prow.",
         "Mount the two Arcadia boosters close together at the stern rather than splayed.",
         "The wings should sweep back, not out."
-      ]
+      ],
+      "style": "sentinel"
     },
     {
       "id": "nostromo",
@@ -343,27 +824,79 @@
       "blurb": "A brutalist brick of a towing vehicle with a huge engine block and no aerodynamics whatsoever. The best pure hauling platform in the hangar - big slots, big cargo, zero grace.",
       "signatureLine": "Crew expendable.",
       "parts": [
-        { "id": "cockpit-thunderbird", "qty": 1, "note": "Deep-set industrial bridge, buried in the hull." },
-        { "id": "hab-titan", "qty": 4, "note": "+12 inventory slots from the habs alone." },
-        { "id": "walkway-titan", "qty": 4 },
-        { "id": "bay-titan", "qty": 2, "note": "Fore and aft cargo bays." },
-        { "id": "reactor-ceto", "qty": 2, "note": "Towing reactor banks." },
-        { "id": "engine-main-titan", "qty": 4, "note": "The huge rear engine wall." },
-        { "id": "engine-light-widebody", "qty": 4, "note": "Attitude and mooring thruster pods strung along the engine wall - also satisfies the two-light-thruster minimum." },
-        { "id": "weapon-torpedo", "qty": 2 },
-        { "id": "weapon-cyclotron", "qty": 2, "note": "Turret clusters." },
-        { "id": "shield-defencefield", "qty": 2 },
-        { "id": "wing-rockhopper", "qty": 4, "note": "Boxy stabilisers." },
-        { "id": "wing-hardframe", "qty": 4, "note": "Industrial cladding." },
-        { "id": "wing-firebox", "qty": 2 },
-        { "id": "gear-heavy", "qty": 4 }
+        {
+          "id": "cockpit-thunderbird",
+          "qty": 1,
+          "note": "Deep-set industrial bridge, buried in the hull."
+        },
+        {
+          "id": "hab-titan",
+          "qty": 4,
+          "note": "+12 inventory slots from the habs alone."
+        },
+        {
+          "id": "walkway-titan",
+          "qty": 4
+        },
+        {
+          "id": "bay-titan",
+          "qty": 2,
+          "note": "Fore and aft cargo bays."
+        },
+        {
+          "id": "reactor-ceto",
+          "qty": 2,
+          "note": "Towing reactor banks."
+        },
+        {
+          "id": "engine-main-titan",
+          "qty": 4,
+          "note": "The huge rear engine wall."
+        },
+        {
+          "id": "engine-light-widebody",
+          "qty": 4,
+          "note": "Attitude and mooring thruster pods strung along the engine wall - also satisfies the two-light-thruster minimum."
+        },
+        {
+          "id": "weapon-torpedo",
+          "qty": 2
+        },
+        {
+          "id": "weapon-cyclotron",
+          "qty": 2,
+          "note": "Turret clusters."
+        },
+        {
+          "id": "shield-defencefield",
+          "qty": 2
+        },
+        {
+          "id": "wing-rockhopper",
+          "qty": 4,
+          "note": "Boxy stabilisers."
+        },
+        {
+          "id": "wing-hardframe",
+          "qty": 4,
+          "note": "Industrial cladding."
+        },
+        {
+          "id": "wing-firebox",
+          "qty": 2
+        },
+        {
+          "id": "gear-heavy",
+          "qty": 4
+        }
       ],
       "buildTips": [
         "Wide, flat and heavy: 3 floors here is actually fine because it is all wall.",
         "The rear engine block should be a solid, unbroken wall of nozzles.",
         "Maximise Habs - this is the blueprint to fly if you want a mobile storage base.",
         "No wings that look aerodynamic. Everything square."
-      ]
+      ],
+      "style": "pirate"
     },
     {
       "id": "thunderbird-2",
@@ -379,27 +912,894 @@
       "blurb": "A big green brick with six landing pads and a belly full of equipment. The easiest large build in the hangar because a Thunderbird is already boxy - and NMS boxy is a feature, not a bug.",
       "signatureLine": "Thunderbird 2 is go.",
       "parts": [
-        { "id": "cockpit-thunderbird", "qty": 1, "note": "Nose flight deck with the dropship read." },
-        { "id": "hab-thunderbird", "qty": 3, "note": "The cargo body - three floors of module space." },
-        { "id": "walkway-thunderbird", "qty": 4 },
-        { "id": "bay-thunderbird", "qty": 1, "note": "The pod release bay at the belly." },
-        { "id": "bay-internal", "qty": 1, "note": "Equipment storage." },
-        { "id": "reactor-medusa", "qty": 1 },
-        { "id": "engine-main-thunderbird", "qty": 2, "note": "Twin pods under the wing roots." },
-        { "id": "engine-light-widebody", "qty": 4 },
-        { "id": "shield-defencefield", "qty": 1 },
-        { "id": "weapon-photon", "qty": 1, "note": "Rescue ships still need one gun." },
-        { "id": "wing-rockhopper", "qty": 2 },
-        { "id": "wing-hardframe", "qty": 2 },
-        { "id": "gear-thunderbird", "qty": 4, "note": "Four thruster pads plus two nose gears." },
-        { "id": "gear-heavy", "qty": 2 },
-        { "id": "wing-vesper-diffuser", "qty": 2, "optional": true }
+        {
+          "id": "cockpit-thunderbird",
+          "qty": 1,
+          "note": "Nose flight deck with the dropship read."
+        },
+        {
+          "id": "hab-thunderbird",
+          "qty": 3,
+          "note": "The cargo body - three floors of module space."
+        },
+        {
+          "id": "walkway-thunderbird",
+          "qty": 4
+        },
+        {
+          "id": "bay-thunderbird",
+          "qty": 1,
+          "note": "The pod release bay at the belly."
+        },
+        {
+          "id": "bay-internal",
+          "qty": 1,
+          "note": "Equipment storage."
+        },
+        {
+          "id": "reactor-medusa",
+          "qty": 1
+        },
+        {
+          "id": "engine-main-thunderbird",
+          "qty": 2,
+          "note": "Twin pods under the wing roots."
+        },
+        {
+          "id": "engine-light-widebody",
+          "qty": 4
+        },
+        {
+          "id": "shield-defencefield",
+          "qty": 1
+        },
+        {
+          "id": "weapon-photon",
+          "qty": 1,
+          "note": "Rescue ships still need one gun."
+        },
+        {
+          "id": "wing-rockhopper",
+          "qty": 2
+        },
+        {
+          "id": "wing-hardframe",
+          "qty": 2
+        },
+        {
+          "id": "gear-thunderbird",
+          "qty": 4,
+          "note": "Four thruster pads plus two nose gears."
+        },
+        {
+          "id": "gear-heavy",
+          "qty": 2
+        },
+        {
+          "id": "wing-vesper-diffuser",
+          "qty": 2,
+          "optional": true
+        }
       ],
       "buildTips": [
         "Three floors, flat box. This is the one blueprint where a 3-floor stack looks correct.",
         "Wing roots sit high and forward, engines hang below them.",
         "Six landing points total - it should look stable enough to hold a small base.",
         "Fill the interior: refiners, storage, a bed. It is a mobile workshop."
+      ],
+      "style": "corvette"
+    },
+    {
+      "id": "razor-crest",
+      "slug": "razor-crest",
+      "name": "Razor Crest",
+      "designation": "Bounty Hunter's Gunship",
+      "franchise": "Star Wars",
+      "classification": "ST-70 class gunship (Din Djarin)",
+      "role": "Bounty Hunter",
+      "difficulty": "A",
+      "accent": "#9fb2c4",
+      "accent2": "#c2410c",
+      "style": "pirate",
+      "blurb": "A blunt, over-engined brick with twin main thrusters and a belly full of armour. Built to take a hit while the quarry runs.",
+      "signatureLine": "This is the way.",
+      "parts": [
+        {
+          "id": "cockpit-thunderbird",
+          "qty": 1,
+          "note": "Blunt industrial flight deck - the Crest's cockpit is a slab, not a bubble."
+        },
+        {
+          "id": "hab-thunderbird",
+          "qty": 2,
+          "note": "Armoured troop compartment behind the cockpit."
+        },
+        {
+          "id": "walkway-thunderbird",
+          "qty": 2,
+          "note": "Ribbed ribs continue the boxy spine."
+        },
+        {
+          "id": "bay-titan",
+          "qty": 1,
+          "note": "Ventral cargo ramp - this is where the bounty goes."
+        },
+        {
+          "id": "engine-main-titan",
+          "qty": 2,
+          "note": "Two big boosters, one per flank."
+        },
+        {
+          "id": "engine-main-pyrodrive",
+          "qty": 1,
+          "note": "Centre Pyrodrive booster for the flame cluster."
+        },
+        {
+          "id": "engine-light-twinecho",
+          "qty": 2,
+          "note": "Vectoring attitude jets."
+        },
+        {
+          "id": "weapon-torpedo",
+          "qty": 2,
+          "note": "Chin-mounted launcher pods."
+        },
+        {
+          "id": "weapon-deadeye",
+          "qty": 2,
+          "note": "Fixed forward cannons either side of the cockpit."
+        },
+        {
+          "id": "shield-highenergy",
+          "qty": 1
+        },
+        {
+          "id": "shield-defencefield",
+          "qty": 1
+        },
+        {
+          "id": "reactor-ceto",
+          "qty": 1,
+          "note": "Shield reactor - it survives what it cannot dodge."
+        },
+        {
+          "id": "wing-firebox",
+          "qty": 2,
+          "note": "Heat-shielded fairings over the booster block."
+        },
+        {
+          "id": "wing-hardframe",
+          "qty": 2,
+          "note": "Armour cladding on the flanks."
+        },
+        {
+          "id": "gear-heavy",
+          "qty": 2,
+          "note": "Heavy struts - the Crest lands nose-up on its forks."
+        },
+        {
+          "id": "gear-thunderbird",
+          "qty": 2,
+          "note": "Thruster-assisted pads."
+        }
+      ],
+      "buildTips": [
+        "Two floors maximum, and keep everything square - no sweeping curves on this ship.",
+        "The engine block should be wider than the hull so it looks overweight in thrust.",
+        "Load both torpedo launchers on the chin, tight together.",
+        "Armour first: pick Firebox and Hardframe plating before adding any wing."
+      ]
+    },
+    {
+      "id": "n1-starfighter",
+      "slug": "n1-starfighter",
+      "name": "N-1 Starfighter",
+      "designation": "Modified Naboo Fighter",
+      "franchise": "Star Wars",
+      "classification": "N-1 starfighter (heavily modified)",
+      "role": "Interceptor",
+      "difficulty": "B",
+      "accent": "#cfd8e3",
+      "accent2": "#d97706",
+      "style": "solar",
+      "blurb": "One engine, two long swept wings, one absurd cannon. The cleanest lines in the hangar and still the fastest thing in the bay.",
+      "signatureLine": "Wizard.",
+      "parts": [
+        {
+          "id": "cockpit-titan",
+          "qty": 1,
+          "note": "Arrowhead nose reads as the N-1's chrome prow."
+        },
+        {
+          "id": "engine-main-pyrodrive",
+          "qty": 1,
+          "note": "A single oversized booster - the whole ship is built around it."
+        },
+        {
+          "id": "engine-light-arcadia",
+          "qty": 2,
+          "note": "Slim thruster pods at the wing roots."
+        },
+        {
+          "id": "wing-arcadia-sfoil",
+          "qty": 2,
+          "note": "Long swept foils, splayed back."
+        },
+        {
+          "id": "wing-speedbird",
+          "qty": 2,
+          "note": "Wingtip plating."
+        },
+        {
+          "id": "weapon-photon",
+          "qty": 2,
+          "note": "Twin nose cannons."
+        },
+        {
+          "id": "weapon-torpedo",
+          "qty": 1,
+          "note": "Belly-mounted torpedo launcher."
+        },
+        {
+          "id": "shield-ion",
+          "qty": 1
+        },
+        {
+          "id": "reactor-azimuth",
+          "qty": 1,
+          "note": "Pulse engine reactor for boost-heavy flying."
+        },
+        {
+          "id": "hab-ambassador",
+          "qty": 1
+        },
+        {
+          "id": "walkway-ambassador",
+          "qty": 1
+        },
+        {
+          "id": "bay-ambassador",
+          "qty": 1
+        },
+        {
+          "id": "gear-standard",
+          "qty": 2
+        },
+        {
+          "id": "gear-magfield",
+          "qty": 1,
+          "note": "Hidden third pad.",
+          "optional": true
+        }
+      ],
+      "buildTips": [
+        "Keep it under 25 modules - the N-1 is a small ship and it should stay one.",
+        "Both foils sweep back at the same angle or it stops reading as an N-1.",
+        "Single engine, do not twin it.",
+        "Put the torpedo launcher underneath, never on top."
+      ]
+    },
+    {
+      "id": "delta-7-jedi",
+      "slug": "delta-7-jedi",
+      "name": "Delta-7 Aethersprite",
+      "designation": "Jedi Starfighter (Anakin)",
+      "franchise": "Star Wars",
+      "classification": "Delta-7B Aethersprite-class light interceptor",
+      "role": "Jedi Interceptor",
+      "difficulty": "A",
+      "accent": "#e0c98a",
+      "accent2": "#facc15",
+      "style": "solar",
+      "blurb": "A needle with wings and an astromech socket. Nothing in the parts pool looks like this, so you build it out of walkways and pylons and let the silhouette do the work.",
+      "signatureLine": "I'll try spinning, that's a good trick.",
+      "parts": [
+        {
+          "id": "cockpit-ambassador",
+          "qty": 1,
+          "note": "Set it at the very tip of the needle, not on top."
+        },
+        {
+          "id": "walkway-ambassador",
+          "qty": 3,
+          "note": "The long forward spine - the Delta-7 is mostly nose."
+        },
+        {
+          "id": "hab-ambassador",
+          "qty": 1,
+          "note": "Compact centre hull."
+        },
+        {
+          "id": "engine-main-ambassador",
+          "qty": 1,
+          "note": "Single slim booster at the stern."
+        },
+        {
+          "id": "engine-light-arcadia",
+          "qty": 2,
+          "note": "Twin pods on the wing roots."
+        },
+        {
+          "id": "wing-ambassador",
+          "qty": 2,
+          "note": "Short straight pylons."
+        },
+        {
+          "id": "wing-speedbird",
+          "qty": 2
+        },
+        {
+          "id": "weapon-photon",
+          "qty": 2,
+          "note": "One cannon per wing."
+        },
+        {
+          "id": "shield-ion",
+          "qty": 1
+        },
+        {
+          "id": "reactor-medusa",
+          "qty": 1,
+          "note": "Manoeuvrability reactor - Jedi ships turn, they don't tank."
+        },
+        {
+          "id": "bay-ambassador",
+          "qty": 1
+        },
+        {
+          "id": "gear-standard",
+          "qty": 2
+        },
+        {
+          "id": "gear-magfield",
+          "qty": 1,
+          "note": "Centre pad for landings.",
+          "optional": true
+        }
+      ],
+      "buildTips": [
+        "Build long and thin: the spine should be roughly twice the length of the wings.",
+        "Set the cockpit dead centreline - this ship has no offset bridge.",
+        "Keep the wings flat and short, not swept.",
+        "Leave room on the hull for the astromech look: a small dome reads well here."
+      ]
+    },
+    {
+      "id": "eta-2-jedi",
+      "slug": "eta-2-jedi",
+      "name": "Eta-2 Actis",
+      "designation": "Jedi Interceptor (Obi-Wan)",
+      "franchise": "Star Wars",
+      "classification": "Eta-2 Actis-class light interceptor",
+      "role": "Jedi Interceptor",
+      "difficulty": "A",
+      "accent": "#c9b8a0",
+      "accent2": "#22d3ee",
+      "style": "solar",
+      "blurb": "The sequel to the Delta-7: shorter, angrier, and much more engine. Twin boosters on short stubby wing roots.",
+      "signatureLine": "Another happy landing.",
+      "parts": [
+        {
+          "id": "cockpit-ambassador",
+          "qty": 1
+        },
+        {
+          "id": "walkway-ambassador",
+          "qty": 2,
+          "note": "Short neck between cockpit and engines."
+        },
+        {
+          "id": "hab-ambassador",
+          "qty": 1
+        },
+        {
+          "id": "engine-main-pyrodrive",
+          "qty": 2,
+          "note": "The Eta-2 is basically two engines with a cockpit bolted on."
+        },
+        {
+          "id": "engine-light-twinecho",
+          "qty": 2
+        },
+        {
+          "id": "wing-osprey",
+          "qty": 2,
+          "note": "Short stubby stabilisers."
+        },
+        {
+          "id": "wing-speedbird",
+          "qty": 2
+        },
+        {
+          "id": "weapon-deadeye",
+          "qty": 2,
+          "note": "Wing-root cannons."
+        },
+        {
+          "id": "weapon-phasebeam",
+          "qty": 1,
+          "note": "Centre beam emitter."
+        },
+        {
+          "id": "shield-ion",
+          "qty": 1
+        },
+        {
+          "id": "reactor-medusa",
+          "qty": 1
+        },
+        {
+          "id": "bay-internal",
+          "qty": 1
+        },
+        {
+          "id": "gear-standard",
+          "qty": 2
+        }
+      ],
+      "buildTips": [
+        "Engines should be as big as the hull - resist making them smaller.",
+        "Wings stay stubby; the Eta-2 has almost no wing area.",
+        "Two floors is already too many. Keep it flat.",
+        "Cyan trim suits it: this is Obi-Wan's blue-marked interceptor."
+      ]
+    },
+    {
+      "id": "tie-interceptor",
+      "slug": "tie-interceptor",
+      "name": "TIE Interceptor",
+      "designation": "Sentinel Pattern Fighter",
+      "franchise": "Star Wars",
+      "classification": "Twin Ion Engine Interceptor (Sentinel-pattern refit)",
+      "role": "Sentinel Fighter",
+      "difficulty": "B",
+      "accent": "#8fa6b8",
+      "accent2": "#ff3427",
+      "style": "sentinel",
+      "blurb": "A ball cockpit with dagger wings and two screaming ion engines. Built in Sentinel plating with crimson trim, it looks like something the Sentinels would actually fly.",
+      "signatureLine": "They came from behind!",
+      "parts": [
+        {
+          "id": "cockpit-ambassador",
+          "qty": 1,
+          "note": "The offset dome is the closest thing to a TIE ball cockpit in the pool."
+        },
+        {
+          "id": "hab-ambassador",
+          "qty": 1,
+          "note": "Minimum legal hull - this ship is a cockpit with engines."
+        },
+        {
+          "id": "engine-main-pyrodrive",
+          "qty": 2,
+          "note": "The twin ion engines, mounted either side of the pod."
+        },
+        {
+          "id": "engine-light-arcadia",
+          "qty": 2
+        },
+        {
+          "id": "wing-arcadia-sfoil",
+          "qty": 4,
+          "note": "Four blades splayed forward and back - the TIE Interceptor dagger wing."
+        },
+        {
+          "id": "weapon-deadeye",
+          "qty": 2,
+          "note": "Chin cannons."
+        },
+        {
+          "id": "weapon-photon",
+          "qty": 2,
+          "note": "Wing-tip cannons."
+        },
+        {
+          "id": "shield-deflector",
+          "qty": 1
+        },
+        {
+          "id": "reactor-medusa",
+          "qty": 1,
+          "note": "Turn rate over everything else."
+        },
+        {
+          "id": "bay-internal",
+          "qty": 1
+        },
+        {
+          "id": "gear-magfield",
+          "qty": 2,
+          "note": "The TIE has no legs - hover pads sold separately."
+        }
+      ],
+      "buildTips": [
+        "Symmetry is absolute: the TIE reads only if both wings match exactly.",
+        "Mount the two engines hard against the hull flanks, not on the stern plate.",
+        "Zero plating and zero walkways - this ship is wings, pod and engines.",
+        "Rendered in Sentinel style it gets the black plating and red rings automatically."
+      ]
+    },
+    {
+      "id": "firespray-slave-one",
+      "slug": "firespray-slave-one",
+      "name": "Firespray Gunship",
+      "designation": "Bounty Hunter's Ship",
+      "franchise": "Star Wars",
+      "classification": "Firespray-31-class patrol and attack craft",
+      "role": "Bounty Hunter",
+      "difficulty": "S",
+      "accent": "#6b8f71",
+      "accent2": "#c2410c",
+      "style": "pirate",
+      "blurb": "The famous one that flies flat. Build it, then pitch it nose-up and it looks exactly right. Rotating ventral engines and a stubby bloated hull.",
+      "signatureLine": "As you wish.",
+      "parts": [
+        {
+          "id": "cockpit-ambassador",
+          "qty": 1,
+          "note": "Offset dome - the Firespray's bridge is off to one side."
+        },
+        {
+          "id": "hab-titan",
+          "qty": 3,
+          "note": "The fat main body. It should look almost spherical from the side."
+        },
+        {
+          "id": "walkway-titan",
+          "qty": 2
+        },
+        {
+          "id": "bay-internal",
+          "qty": 1
+        },
+        {
+          "id": "bay-titan",
+          "qty": 1,
+          "note": "Ventral ramp; the Firespray lands on its back."
+        },
+        {
+          "id": "engine-main-thunderbird",
+          "qty": 2,
+          "note": "Ventral rotating boosters."
+        },
+        {
+          "id": "engine-main-pyrodrive",
+          "qty": 1
+        },
+        {
+          "id": "engine-light-widebody",
+          "qty": 2
+        },
+        {
+          "id": "weapon-cyclotron",
+          "qty": 2,
+          "note": "Belly turret cluster."
+        },
+        {
+          "id": "weapon-torpedo",
+          "qty": 2,
+          "note": "Dorsal launchers."
+        },
+        {
+          "id": "weapon-infraknife",
+          "qty": 2
+        },
+        {
+          "id": "shield-highenergy",
+          "qty": 2
+        },
+        {
+          "id": "reactor-ceto",
+          "qty": 1
+        },
+        {
+          "id": "reactor-zenith",
+          "qty": 1
+        },
+        {
+          "id": "wing-rockhopper",
+          "qty": 2,
+          "note": "Short ventral fins."
+        },
+        {
+          "id": "wing-hardframe",
+          "qty": 2
+        },
+        {
+          "id": "gear-heavy",
+          "qty": 2
+        },
+        {
+          "id": "gear-hydraulic",
+          "qty": 2
+        }
+      ],
+      "buildTips": [
+        "Make the hull rounder and fatter than feels natural - the Firespray is a blob.",
+        "All engines go on the underside, none on the stern.",
+        "Load the belly with turrets so the underside is busy.",
+        "This is a heavy build: four landing gear minimum."
+      ]
+    },
+    {
+      "id": "batwing",
+      "slug": "batwing",
+      "name": "The Batwing",
+      "designation": "Stealth Interceptor",
+      "franchise": "DC",
+      "classification": "Experimental stealth interceptor",
+      "role": "Stealth Interceptor",
+      "difficulty": "A",
+      "accent": "#334155",
+      "accent2": "#facc15",
+      "style": "sentinel",
+      "blurb": "Two enormous swept wings, a cockpit and a rocket. The silhouette is almost entirely wing, which makes it the most dramatic shape you can build in the Workshop.",
+      "signatureLine": "I'm Batman.",
+      "parts": [
+        {
+          "id": "cockpit-titan",
+          "qty": 1
+        },
+        {
+          "id": "hab-ambassador",
+          "qty": 1
+        },
+        {
+          "id": "engine-main-pyrodrive",
+          "qty": 1,
+          "note": "One big central booster."
+        },
+        {
+          "id": "engine-light-twinecho",
+          "qty": 2
+        },
+        {
+          "id": "wing-arcadia-sfoil",
+          "qty": 4,
+          "note": "Four long foils, two per side, swept back hard."
+        },
+        {
+          "id": "wing-titan",
+          "qty": 2
+        },
+        {
+          "id": "weapon-deadeye",
+          "qty": 2
+        },
+        {
+          "id": "weapon-photon",
+          "qty": 2
+        },
+        {
+          "id": "shield-deflector",
+          "qty": 1
+        },
+        {
+          "id": "reactor-medusa",
+          "qty": 1
+        },
+        {
+          "id": "bay-internal",
+          "qty": 1
+        },
+        {
+          "id": "gear-standard",
+          "qty": 2
+        },
+        {
+          "id": "wing-speedbird",
+          "qty": 2,
+          "note": "Wingtip fins.",
+          "optional": true
+        }
+      ],
+      "buildTips": [
+        "Wings must be at least as long as the ship is long, or it reads as a shuttle.",
+        "Sweep the foils back hard - flat wings kill the look.",
+        "Keep the hull small and dark; the wings are the entire design.",
+        "No dorsal clutter. Nothing on top."
+      ]
+    },
+    {
+      "id": "sentinel-interceptor",
+      "slug": "sentinel-interceptor",
+      "name": "Sentinel Interceptor",
+      "designation": "Corrupted Pattern",
+      "franchise": "No Man's Sky",
+      "classification": "Salvaged Sentinel interceptor (rebuilt at a Corvette Workshop)",
+      "role": "Sentinel Hunter",
+      "difficulty": "B",
+      "accent": "#ff3427",
+      "accent2": "#1f2937",
+      "style": "sentinel",
+      "blurb": "The look you asked for: black corrupted plating, glowing red rings around every engine and blades instead of wings. A Corvette built out of salvaged Sentinel parts.",
+      "signatureLine": "Sentinel forces are converging.",
+      "parts": [
+        {
+          "id": "cockpit-thunderbird",
+          "qty": 1,
+          "note": "Angular flight deck, black plating."
+        },
+        {
+          "id": "hab-thunderbird",
+          "qty": 2,
+          "note": "Armoured core, minimal windows."
+        },
+        {
+          "id": "walkway-thunderbird",
+          "qty": 2
+        },
+        {
+          "id": "bay-internal",
+          "qty": 1
+        },
+        {
+          "id": "engine-main-arcadia",
+          "qty": 2,
+          "note": "Twin endgame boosters - the ring flourish draws around each one."
+        },
+        {
+          "id": "engine-light-arcadia",
+          "qty": 4,
+          "note": "Four pod thrusters so every corner gets a ring."
+        },
+        {
+          "id": "wing-arcadia-sfoil",
+          "qty": 4,
+          "note": "Blade stack."
+        },
+        {
+          "id": "weapon-infraknife",
+          "qty": 2,
+          "note": "The Sentinel's own rapid-fire battery."
+        },
+        {
+          "id": "weapon-deadeye",
+          "qty": 2
+        },
+        {
+          "id": "weapon-cyclotron",
+          "qty": 2
+        },
+        {
+          "id": "shield-aeron",
+          "qty": 2,
+          "note": "Best shield in the pool - Sentinels do not die easily."
+        },
+        {
+          "id": "reactor-ceto",
+          "qty": 2,
+          "note": "Shield reactors."
+        },
+        {
+          "id": "wing-hardframe",
+          "qty": 2
+        },
+        {
+          "id": "gear-magfield",
+          "qty": 2,
+          "note": "No legs - Sentinels hover."
+        },
+        {
+          "id": "gear-thunderbird",
+          "qty": 2
+        }
+      ],
+      "buildTips": [
+        "Rendered in Sentinel style: black plating, red emissive trim and glowing engine rings.",
+        "Fit four light thrusters - each one gets its own ring, which is what makes it look Sentinel.",
+        "Maximum weapons: Sentinels do not do subtle.",
+        "Two shield generators minimum, then lean on adjacency in the real build."
+      ]
+    },
+    {
+      "id": "corrupted-dreadnought",
+      "slug": "corrupted-dreadnought",
+      "name": "Corrupted Dreadnought",
+      "designation": "Sentinel Capital Platform",
+      "franchise": "No Man's Sky",
+      "classification": "Corrupted Sentinel capital ship (Corvette-scale replica)",
+      "role": "Capital Hunter",
+      "difficulty": "S",
+      "accent": "#ff3427",
+      "accent2": "#0f172a",
+      "style": "sentinel",
+      "blurb": "The brutal one: a full-scale flying base in corrupted plating, with a wall of engines, turret batteries along both edges and enough Habs to live in.",
+      "signatureLine": "Your presence has been noted, traveller.",
+      "parts": [
+        {
+          "id": "cockpit-titan",
+          "qty": 1
+        },
+        {
+          "id": "hab-titan",
+          "qty": 6,
+          "note": "Three floors of armour plating."
+        },
+        {
+          "id": "walkway-titan",
+          "qty": 6
+        },
+        {
+          "id": "hab-thunderbird",
+          "qty": 2
+        },
+        {
+          "id": "bay-titan",
+          "qty": 1
+        },
+        {
+          "id": "bay-internal",
+          "qty": 1
+        },
+        {
+          "id": "engine-main-titan",
+          "qty": 4,
+          "note": "The engine wall."
+        },
+        {
+          "id": "engine-main-thunderbird",
+          "qty": 2
+        },
+        {
+          "id": "engine-light-widebody",
+          "qty": 4
+        },
+        {
+          "id": "weapon-cyclotron",
+          "qty": 4,
+          "note": "Broadside turret batteries."
+        },
+        {
+          "id": "weapon-infraknife",
+          "qty": 4
+        },
+        {
+          "id": "weapon-torpedo",
+          "qty": 2
+        },
+        {
+          "id": "shield-aeron",
+          "qty": 2
+        },
+        {
+          "id": "shield-defencefield",
+          "qty": 2
+        },
+        {
+          "id": "reactor-ceto",
+          "qty": 3
+        },
+        {
+          "id": "reactor-zenith",
+          "qty": 1
+        },
+        {
+          "id": "wing-rockhopper",
+          "qty": 2
+        },
+        {
+          "id": "wing-hardframe",
+          "qty": 4
+        },
+        {
+          "id": "wing-firebox",
+          "qty": 2
+        },
+        {
+          "id": "gear-heavy",
+          "qty": 4
+        },
+        {
+          "id": "gear-thunderbird",
+          "qty": 2
+        }
+      ],
+      "buildTips": [
+        "Three floors is correct here - it is supposed to feel like a capital ship.",
+        "Run turret batteries down both flanks; the Dreadnought look is edges, not details.",
+        "Rendered in Sentinel style so the entire hull goes corrupted black with red trim.",
+        "Watch the 160 cap: trim the optional plating before you trim guns."
       ]
     }
   ]

@@ -26,7 +26,7 @@ export default function PartPicker({
   const [source, setSource] = useState<SourceFilter>("all");
   const [tag, setTag] = useState<string>("all");
 
-  const pool = partsByCategory[categoryId] ?? [];
+  const pool = useMemo(() => partsByCategory[categoryId] ?? [], [categoryId]);
   const selected = slotsOf(build, categoryId);
 
   const tags = useMemo(() => {

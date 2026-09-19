@@ -131,6 +131,22 @@ export function generateShipName(rng: Rng, roles: RoleId[] = []): string {
   return `${noun}-Class ${pick(rng, ["Corsair", "Runner", "Gunship", "Freighter", "Interceptor"])}`;
 }
 
+const SENTINEL_NOUNS = [
+  "Sentinel", "Corruptor", "Watcher", "Nemesis", "Aegis", "Quadium",
+  "Hadal", "Vortex", "Ascendant", "Null-Sec", "Glassmaker", "Cassandra",
+];
+const SENTINEL_PREFIX = ["Corrupted", "Prime", "Anomalous", "Redacted", "Unbound", "Sanctioned"];
+
+/** Names a hull the way the Sentinels label their own hardware. */
+export function generateSentinelName(rng: Rng): string {
+  const noun = pick(rng, SENTINEL_NOUNS);
+  const roll = rng();
+  if (roll < 0.35) return `${pick(rng, SENTINEL_PREFIX)} ${noun}`;
+  if (roll < 0.6) return `The ${noun} Protocol`;
+  if (roll < 0.8) return `${noun} Pattern ${code(rng)}`;
+  return `${noun}-Class Sentinel`;
+}
+
 export const ROLE_DESIGNATIONS: Record<RoleId, string[]> = {
   combat: [
     "Gunship Configuration",

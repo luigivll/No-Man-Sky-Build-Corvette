@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ShipViewPanel from "@/components/ShipViewPanel";
+import { SHIP_STYLES } from "@/lib/shipStyles";
 import RequirementTracker from "@/components/RequirementTracker";
 import ShoppingList from "@/components/ShoppingList";
 import StatRadar from "@/components/StatRadar";
@@ -30,6 +31,7 @@ import {
 import type { RoleId } from "@/lib/types";
 
 const DEFAULT_OPTIONS: GeneratorOptions = {
+  hullStyles: [],
   roles: ["combat"],
   size: "auto",
   salvageOnly: false,
@@ -66,6 +68,8 @@ export default function RandomizerPage() {
       size: SIZE_OPTIONS.some((s) => s.id === size) ? size : "auto",
       salvageOnly: params.get("salvage") === "1",
       symmetry: params.get("symmetry") === "1",
+      sentinel: params.get("sentinel") === "1",
+      hullStyles: (params.get("style") ?? "").split("+").filter(Boolean),
       seed: Number.isFinite(seedParam) && seedParam > 0 ? seedParam : randomSeed(),
     };
     roll(next);
@@ -82,6 +86,8 @@ export default function RandomizerPage() {
     });
     if (options.salvageOnly) params.set("salvage", "1");
     if (options.symmetry) params.set("symmetry", "1");
+    if (options.sentinel) params.set("sentinel", "1");
+    if (options.hullStyles?.length) params.set("style", options.hullStyles.join("+"));
     window.history.replaceState(null, "", `/randomizer?${params.toString()}`);
   }, [options, rolled]);
 
@@ -90,7 +96,7 @@ export default function RandomizerPage() {
   const total = countParts(build);
   const shareUrl =
     typeof window !== "undefined" && rolled
-      ? `${window.location.origin}/randomizer?roles=${options.roles.join(",")}&size=${options.size}&seed=${options.seed}${options.salvageOnly ? "&salvage=1" : ""}${options.symmetry ? "&symmetry=1" : ""}`
+      ? `${window.location.origin}/randomizer?roles=${options.roles.join(",")}&size=${options.size}&seed=${options.seed}${options.salvageOnly ? "&salvage=1" : ""}${options.symmetry ? "&symmetry=1" : ""}${options.sentinel ? "&sentinel=1" : ""}${options.hullStyles?.length ? `&style=${options.hullStyles.join("+")}` : ""}`
       : "";
 
   function toggleRole(role: RoleId) {
@@ -302,6 +308,82 @@ export default function RandomizerPage() {
                 </button>
               </div>
 
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <HudLabel>Hull family</HudLabel>
+                  <span className="font-mono text-[0.58rem] uppercase tracking-wider text-slate-500">
+                    pick two to fuse
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
+                  {SHIP_STYLES.map((option) => {
+                    const selected = (options.hullStyles ?? []).includes(option.id);
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        title={`${option.label} - ${option.blurb}`}
+                        onClick={() =>
+                          setOptions((current) => {
+                            const list = current.hullStyles ?? [];
+                            const next = selected
+                              ? list.length > 1
+                                ? list.filter((id) => id !== option.id)
+                                : list
+                              : list.length >= 2
+                                ? [list[list.length - 1], option.id]
+                                : [...list, option.id];
+                            return { ...current, hullStyles: next };
+                          })
+                        }
+                        className={`flex flex-col items-stretch gap-1 border p-1.5 transition ${
+                          selected
+                            ? "border-cyan-400/60 bg-cyan-400/10"
+                            : "border-white/10 hover:border-white/30"
+                        }`}
+                      >
+                        <span
+                          className="h-2 w-full"
+                          style={{
+                            background: `linear-gradient(90deg, ${option.hullBase} 0 52%, ${option.emissive} 52% 100%)`,
+                          }}
+                        />
+                        <span className="truncate font-mono text-[0.55rem] uppercase tracking-wider text-slate-300">
+                          {option.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {options.sentinel ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOptions((current) => ({ ...current, sentinel: false }))
+                    }
+                    className="w-full border border-[#ff3427]/60 bg-[#ff3427]/10 px-2.5 py-1.5 font-mono text-[0.62rem] uppercase tracking-wider text-[#ff8a7d] transition hover:bg-[#ff3427]/20"
+                  >
+                    Sentinel doctrine locked to {""}
+                    {SHIP_STYLES.find((s) => s.id === "sentinel")?.label} - click to unlock
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOptions((current) => ({
+                        ...current,
+                        sentinel: true,
+                        hullStyles: ["sentinel"],
+                      }))
+                    }
+                    className="flex w-full items-center justify-center gap-2 border border-[#ff3427]/40 px-2.5 py-1.5 font-mono text-[0.62rem] uppercase tracking-wider text-[#ff8a7d] transition hover:border-[#ff3427]/70 hover:bg-[#ff3427]/10"
+                  >
+                    <Icon name="AlertTriangle" className="h-3.5 w-3.5" />
+                    Sentinel mode: corrupted plating, blade wings, ring engines
+                  </button>
+                )}
+              </div>
+
               <div className="flex items-end gap-2">
                 <label className="flex-1">
                   <HudLabel>Seed</HudLabel>
@@ -453,6 +535,7 @@ export default function RandomizerPage() {
           </Panel>
 
           <ShipViewPanel
+            styleOverride={(build.styleIds ?? []).join("+") || undefined}
             build={build}
             height={380}
             title="Generated hull preview"
