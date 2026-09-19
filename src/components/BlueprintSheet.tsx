@@ -47,6 +47,10 @@ export default function BlueprintSheet({ blueprint }: { blueprint: Blueprint }) 
   const requiredCount = blueprint.parts
     .filter((ref) => !ref.optional)
     .reduce((sum, ref) => sum + ref.qty, 0);
+  const optionalCount = blueprint.parts
+    .filter((ref) => ref.optional)
+    .reduce((sum, ref) => sum + ref.qty, 0);
+  const manifestCount = requiredCount + optionalCount;
 
   function loadIntoBuilder() {
     setBuild({ ...build, origin: "manual" });
@@ -55,6 +59,15 @@ export default function BlueprintSheet({ blueprint }: { blueprint: Blueprint }) 
 
   function markdown() {
     const lines = [buildToMarkdown(build)];
+    const optional = blueprint.parts.filter((ref) => ref.optional);
+    if (optional.length > 0) {
+      lines.push("");
+      lines.push("## Optional cosmetic extras (not priced above)");
+      optional.forEach((ref) => {
+        const part = partById[ref.id];
+        if (part) lines.push(`- ${ref.qty}x ${part.name} (optional)`);
+      });
+    }
     lines.push("");
     lines.push("## Blueprint build tips");
     blueprint.buildTips.forEach((tip) => lines.push(`- ${tip}`));
@@ -130,7 +143,10 @@ export default function BlueprintSheet({ blueprint }: { blueprint: Blueprint }) 
               {
                 label: "Total modules",
                 value: `${moduleCount}`,
-                sub: `${requiredCount} required + ${moduleCount - requiredCount} optional`,
+                sub:
+                  optionalCount > 0
+                    ? `${requiredCount} required + ${optionalCount} optional`
+                    : "required modules only",
                 accent: blueprint.accent,
               },
               {
@@ -188,7 +204,8 @@ export default function BlueprintSheet({ blueprint }: { blueprint: Blueprint }) 
             icon={<Icon name="ClipboardList" className="h-4 w-4" />}
             right={
               <span className="hud-mono text-xs text-slate-400">
-                {moduleCount} pcs · {formatUnits(cost.total)} U
+                {manifestCount} pcs listed · {moduleCount} required ·{" "}
+                {formatUnits(cost.total)} U
               </span>
             }
           />
