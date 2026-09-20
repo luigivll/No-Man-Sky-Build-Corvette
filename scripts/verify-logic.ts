@@ -12,6 +12,7 @@
  */
 import { buildFromBlueprint, computeStats, costBreakdown, countParts, expandParts, isSpaceworthy, requirementStatus, inventorySlots } from "../src/lib/build";
 import { buildPartMesh, buildShipMesh, projectScene, DEFAULT_VIEW } from "../src/lib/render3d";
+import { compileManual } from "../src/lib/assembly";
 import { SHIP_STYLES, fuseStyles } from "../src/lib/shipStyles";
 import { blueprints, categories, meta, parts } from "../src/lib/data";
 import { ROLE_DEFS, generateBuild, type GeneratorOptions } from "../src/lib/randomizer";
@@ -295,6 +296,68 @@ console.log(`\n== 3D ship renderer ==`);
       blended.emissive !== fuseStyles(["exotic"], 7).emissive &&
       blended.flourishes.length >= 2,
     "fusion returned one of the parents unchanged",
+  );
+
+  // --- assembly manual compiler ----------------------------------------
+  for (const blueprint of blueprints) {
+    const build = buildFromBlueprint(blueprint);
+    const manual = compileManual(build, { style: blueprint.style });
+    const covered = new Set(manual.steps.flatMap((step) => step.placements.map((p) => p.key)));
+    const sectionsInOrder = manual.sections.every(
+      (section, index) =>
+        index === 0 || manual.sections[index - 1].completed.length <= section.completed.length,
+    );
+    const everyPlacementHasPosition = manual.steps.every((step) =>
+      step.placements.every((p) => p.position.length > 0 && p.attach.length > 0),
+    );
+    check(
+      `manual: ${blueprint.name.padEnd(26)} ${String(manual.sections.length).padStart(2)} sections ${String(manual.steps.length).padStart(3)} steps, every one of ${manual.moduleCount} modules covered`,
+      manual.uncovered.length === 0 &&
+        covered.size === manual.moduleCount &&
+        sectionsInOrder &&
+        everyPlacementHasPosition &&
+        manual.steps.length > 0,
+      manual.uncovered.length > 0
+        ? `not in any step: ${manual.uncovered.join(", ")}`
+        : "section order or placement text is broken",
+    );
+  }
+
+  // the manual must render: ghost pass, placed pass and the highlighted step
+  const manualSample = compileManual(buildFromBlueprint(blueprints[0]), { style: "sentinel" });
+  const midStep = manualSample.steps[Math.floor(manualSample.steps.length / 2)];
+  const manualScene = projectScene(
+    manualSample.mesh,
+    DEFAULT_VIEW,
+    canvasW,
+    canvasH,
+    {
+      material: "manual",
+      activeKeys: midStep.placements.map((p) => p.key),
+      placedKeys: midStep.cumulative,
+      accent: "#7c5cff",
+    },
+  );
+  const states = manualScene.faces.reduce<Record<string, number>>((acc, face) => {
+    acc[face.state] = (acc[face.state] ?? 0) + 1;
+    return acc;
+  }, {});
+  // the paper pass must stay flat: no HSL gradients, no transparency tricks
+  const flatInk = manualScene.faces.every((face) => /^rgba?\(/.test(face.fill));
+  const activeIsAccent = manualScene.faces
+    .filter((face) => face.state === "active")
+    .every((face) => {
+      const [r, g, b] = face.fill.match(/\d+/g)?.map(Number) ?? [0, 0, 0];
+      return b > r && r > 60; // the violet accent, not paper white
+    });
+  check(
+    `manual step ${midStep.index}/${midStep.of} draws ${states.active ?? 0} highlighted, ${states.placed ?? 0} fitted, ${states.ghost ?? 0} ghost faces, flat ink`,
+    (states.active ?? 0) > 0 &&
+      (states.placed ?? 0) > 0 &&
+      (states.ghost ?? 0) > 0 &&
+      flatInk &&
+      activeIsAccent,
+    "the manual page is missing one of its three drawing passes",
   );
 
   // a maximum-size hull still renders (performance guard)

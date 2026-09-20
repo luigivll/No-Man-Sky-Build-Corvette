@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useMemo, useState } from "react";
 import ShipViewPanel from "@/components/ShipViewPanel";
 import PartPicker from "@/components/PartPicker";
@@ -247,6 +249,14 @@ export default function BuilderPage() {
             height={420}
             title="Ship preview"
             subtitle="Your Corvette as built - drag to orbit, then flip to blueprint for the technical view."
+            headerRight={
+              countParts(build) > 0 ? (
+                <Link href="/assembly" className="btn-ghost">
+                  <Icon name="ClipboardList" className="h-3.5 w-3.5" />
+                  Assembly manual
+                </Link>
+              ) : undefined
+            }
           />
         </div>
 

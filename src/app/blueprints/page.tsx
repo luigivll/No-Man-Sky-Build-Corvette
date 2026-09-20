@@ -161,14 +161,20 @@ export default function BlueprintsPage() {
                 <span>{blueprint.role}</span>
               </div>
 
-              <Link
-                href={`/blueprints/${blueprint.slug}`}
-                className="btn w-full"
-                style={{ borderColor: `${blueprint.accent}66` }}
-              >
-                <Icon name="ClipboardList" className="h-3.5 w-3.5" />
-                Open blueprint sheet
-              </Link>
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  href={`/blueprints/${blueprint.slug}`}
+                  className="btn"
+                  style={{ borderColor: `${blueprint.accent}66` }}
+                >
+                  <Icon name="ClipboardList" className="h-3.5 w-3.5" />
+                  Blueprint sheet
+                </Link>
+                <Link href={`/assembly/${blueprint.slug}`} className="btn">
+                  <Icon name="Wrench" className="h-3.5 w-3.5" />
+                  Assembly
+                </Link>
+              </div>
             </div>
           </Panel>
         ))}

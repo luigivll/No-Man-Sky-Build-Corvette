@@ -65,10 +65,27 @@ export interface ModuleSpec {
 }
 
 export interface PartMesh {
+  /** stable instance id: "wing-osprey#1" (second Osprey in the build) */
+  key: string;
   partId: string;
   partName: string;
   category: PartCategoryId;
   faces: Face3D[];
+}
+
+/** One placed module, with everything needed to write assembly instructions. */
+export interface ModuleInstance {
+  key: string;
+  partId: string;
+  partName: string;
+  category: PartCategoryId;
+  /** centre of the module in ship space */
+  anchor: V3;
+  /** part id of the module it is bolted to, or "hull" */
+  parent: string;
+  /** socket on the parent that it claimed */
+  socket: string;
+  gap: number;
 }
 
 export interface PlumeSpec {
@@ -97,6 +114,8 @@ export interface ShipMesh {
   moduleCount: number;
   style: ShipStyle;
   attachments: AttachmentRecord[];
+  /** every placed module, in build order, keyed for step-by-step assembly */
+  modules: ModuleInstance[];
   /** scene dressing generated from the style */
   flourishes: { kind: FlourishId; faces: Face3D[] }[];
   hasShield: boolean;
@@ -769,6 +788,24 @@ function attachTransform(
   return { transform: { pos, rot, scale }, gap: len(sub(placed, targetPos)) };
 }
 
+/** Mean vertex of a part's faces - good enough to describe where it sits. */
+function centroidOf(faces: Face3D[]): V3 {
+  if (faces.length === 0) return [0, 0, 0];
+  let x = 0;
+  let y = 0;
+  let z = 0;
+  let n = 0;
+  for (const face of faces) {
+    for (const p of face.pts) {
+      x += p[0];
+      y += p[1];
+      z += p[2];
+      n += 1;
+    }
+  }
+  return n === 0 ? [0, 0, 0] : [x / n, y / n, z / n];
+}
+
 /* ------------------------------------------------------------------ */
 /* build -> scene                                                     */
 /* ------------------------------------------------------------------ */
@@ -830,9 +867,24 @@ export function buildShipMesh(build: Build, options: BuildMeshOptions = {}): Shi
     return chosen;
   };
 
+  const modules: ModuleInstance[] = [];
+  const instanceSeq = new Map<string, number>();
   const push = (part: Part, faces: Face3D[]) => {
     if (faces.length === 0) return;
-    parts.push({ partId: part.id, partName: part.name, category: part.category, faces });
+    const n = instanceSeq.get(part.id) ?? 0;
+    instanceSeq.set(part.id, n + 1);
+    const key = `${part.id}#${n}`;
+    parts.push({ key, partId: part.id, partName: part.name, category: part.category, faces });
+    modules.push({
+      key,
+      partId: part.id,
+      partName: part.name,
+      category: part.category,
+      anchor: centroidOf(faces),
+      parent: "hull",
+      socket: "",
+      gap: 0,
+    });
   };
 
   /* ---- 1. hull pods on a spiral footprint -------------------------- */
@@ -1199,6 +1251,7 @@ export function buildShipMesh(build: Build, options: BuildMeshOptions = {}): Shi
     attachments,
     flourishes: flourishFaces,
     hasShield: shields.length > 0,
+    modules: linkParents(modules, attachments),
   };
 }
 
@@ -1394,7 +1447,12 @@ function rotateView(v: V3, view: ViewState): V3 {
   return [x1, y2, z2];
 }
 
+export type FaceState = "placed" | "active" | "ghost" | "decor";
+
 export interface ProjectedFace {
+  /** module instance key this face belongs to ("wing-osprey#1") */
+  key: string;
+  state: FaceState;
   partId: string;
   partName: string;
   category: PartCategoryId | "scene";
@@ -1416,6 +1474,21 @@ export interface ProjectedScene {
   shadow: { cx: number; cy: number; rx: number; ry: number } | null;
   environment: "space" | "hangar";
   camera: { x: number; y: number; z: number };
+}
+
+export interface ProjectionOptions {
+  padding?: number;
+  baseKind?: FaceKind;
+  /** "render" = lit 3D preview, "manual" = flat ink-on-paper assembly drawing */
+  material?: "render" | "manual";
+  /** module keys highlighted as the step being installed */
+  activeKeys?: string[];
+  /** module keys already bolted on earlier in the manual */
+  placedKeys?: string[];
+  /** accent used for the active step */
+  accent?: string;
+  /** style flourishes are hidden while the manual is mid-assembly */
+  showDecor?: boolean;
 }
 
 const LIGHT: V3 = norm([-0.45, 0.72, -0.55]);
@@ -1448,8 +1521,17 @@ export function projectScene(
   view: ViewState,
   width: number,
   height: number,
-  opts: { padding?: number; baseKind?: FaceKind } = {},
+  opts: ProjectionOptions = {},
 ): ProjectedScene {
+  const manual = opts.material === "manual";
+  const activeKeys = new Set(opts.activeKeys ?? []);
+  const placedKeys = new Set(opts.placedKeys ?? []);
+  const accent = hexToRgb(opts.accent ?? "#7c5cff");
+  const stateOf = (key: string): FaceState => {
+    if (activeKeys.has(key)) return "active";
+    if (placedKeys.has(key)) return "placed";
+    return "ghost";
+  };
   const finite = (n: number, fallback = 0) => (Number.isFinite(n) ? n : fallback);
   const min: V3 = [finite(mesh.bounds.min[0], -1), finite(mesh.bounds.min[1], -1), finite(mesh.bounds.min[2], -2)];
   const max: V3 = [finite(mesh.bounds.max[0], 1), finite(mesh.bounds.max[1], 1), finite(mesh.bounds.max[2], 2)];
@@ -1502,7 +1584,13 @@ export function projectScene(
   };
   const project = (v: V3) => projectRotated(rotateView(v, view));
 
-  const shade = (rgb: [number, number, number], pts: V3[], kind: FaceKind, opacity?: number) => {
+  const shade = (
+    rgb: [number, number, number],
+    pts: V3[],
+    kind: FaceKind,
+    opacity?: number,
+    override?: { state: FaceState },
+  ) => {
     const n = norm(cross(sub(pts[1], pts[0]), sub(pts[2], pts[0])));
     const nv = rotateView(n, view);
     const diffuse = Math.max(0, dot(nv, LIGHT));
@@ -1523,11 +1611,26 @@ export function projectScene(
     if (kind === "glass") out = mixRgb(out, [12, 20, 34], 0.35);
     if (kind === "dark") out = scaleRgb(out, 0.78);
     if (kind === "sail") out = scaleRgb(out, 1.05);
+
+    if (manual) {
+      // "Manual" material: the flat ink-on-paper look of an assembly booklet.
+      // Form still reads because the greys follow the same lighting term.
+      const ink = 0.62 + 0.38 * Math.min(1, lum);
+      if (override?.state === "active") {
+        out = scaleRgb(mixRgb(accent, [255, 255, 255], 0.42), 0.75 + ink * 0.5);
+        return rgbCss(out, 1);
+      }
+      if (override?.state === "decor") return rgbCss(scaleRgb([150, 160, 190], ink), 0.5);
+      out = scaleRgb([248, 249, 252], ink);
+      return rgbCss(out, override?.state === "ghost" ? 0.5 : 1);
+    }
     return rgbCss(out, opacity ?? 1);
   };
 
   const out: ProjectedFace[] = [];
   const emit = (
+    key: string,
+    state: FaceState,
     partId: string,
     partName: string,
     category: PartCategoryId | "scene",
@@ -1538,11 +1641,13 @@ export function projectScene(
     const projected = rotatedPts.map(projectRotated);
     const depth = projected.reduce((sum, p) => sum + p.z, 0) / Math.max(1, projected.length);
     out.push({
+      key,
+      state,
       partId,
       partName,
       category,
       points: projected.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" "),
-      fill: shade(face.rgb, face.pts, face.kind, face.opacity),
+      fill: shade(face.rgb, face.pts, face.kind, face.opacity, { state }),
       opacity: face.opacity ?? 1,
       kind: face.kind,
       depth,
@@ -1551,13 +1656,15 @@ export function projectScene(
   };
 
   mesh.parts.forEach((part, partIndex) => {
+    const state = stateOf(part.key);
     part.faces.forEach((face, faceIndex) => {
-      emit(part.partId, part.partName, part.category, face, rotated[partIndex][faceIndex]);
+      emit(part.key, state, part.partId, part.partName, part.category, face, rotated[partIndex][faceIndex]);
     });
   });
-  mesh.flourishes.forEach((group, groupIndex) => {
+  const decorVisible = !manual || opts.showDecor === true;
+  (decorVisible ? mesh.flourishes : []).forEach((group, groupIndex) => {
     group.faces.forEach((face, faceIndex) => {
-      emit(`${group.kind}`, group.kind, "scene", face, flourishRotated[groupIndex][faceIndex], group.kind);
+      emit(`${group.kind}#0`, "decor", `${group.kind}`, group.kind, "scene", face, flourishRotated[groupIndex][faceIndex], group.kind);
     });
   });
 
@@ -1641,7 +1748,7 @@ export function projectScene(
   const { stars, nebula } = starfield(width, height, (mesh.moduleCount + 11) * 13);
 
   let shadow: ProjectedScene["shadow"] = null;
-  if (environment === "hangar") {
+  if (environment === "hangar" && !manual) {
     const pts = [
       project([min[0] - 0.5, mesh.groundY, min[2] - 0.5]),
       project([max[0] + 0.5, mesh.groundY, min[2] - 0.5]),
@@ -1669,6 +1776,36 @@ export function projectScene(
     environment,
     camera: { x: cam[0], y: cam[1], z: cam[2] },
   };
+}
+
+/**
+ * Attachment records are emitted as part ids ("wing-osprey"); the manual needs
+ * instance keys ("wing-osprey#1"). Records are pushed in the same order the
+ * instances of that part were created, so pairing them up by occurrence is exact.
+ */
+function linkParents(
+  modules: ModuleInstance[],
+  attachments: AttachmentRecord[],
+): ModuleInstance[] {
+  const byPart = new Map<string, ModuleInstance[]>();
+  for (const instance of modules) {
+    const list = byPart.get(instance.partId);
+    if (list) list.push(instance);
+    else byPart.set(instance.partId, [instance]);
+  }
+  const cursor = new Map<string, number>();
+  for (const record of attachments) {
+    const list = byPart.get(record.child);
+    if (!list) continue;
+    const index = cursor.get(record.child) ?? 0;
+    const target = list[index];
+    if (!target) continue;
+    target.parent = record.parent;
+    target.socket = record.socket;
+    target.gap = record.gap;
+    cursor.set(record.child, index + 1);
+  }
+  return modules;
 }
 
 /** A shield bubble ring: 0 = horizontal equator, 1 = tilted envelope. */
@@ -1701,15 +1838,27 @@ export function buildPartMesh(part: Part, options: BuildMeshOptions = {}): ShipM
     density: "high",
   };
   const spec = moduleSpec(part, ctx, { legLength: 1.0, reactorLength: 1.1 });
-  const bounds = boundsOf([{ partId: part.id, partName: part.name, category: part.category, faces: spec.faces }]);
+  const bounds = boundsOf([{ key: `${part.id}#0`, partId: part.id, partName: part.name, category: part.category, faces: spec.faces }]);
   return {
-    parts: [{ partId: part.id, partName: part.name, category: part.category, faces: spec.faces }],
+    parts: [{ key: `${part.id}#0`, partId: part.id, partName: part.name, category: part.category, faces: spec.faces }],
     plumes: [],
     bounds,
     groundY: bounds.min[1] - 0.4,
     moduleCount: 1,
     style,
     attachments: [],
+    modules: [
+      {
+        key: `${part.id}#0`,
+        partId: part.id,
+        partName: part.name,
+        category: part.category,
+        anchor: centroidOf(spec.faces),
+        parent: "hull",
+        socket: "",
+        gap: 0,
+      },
+    ],
     flourishes: [],
     hasShield: false,
   };

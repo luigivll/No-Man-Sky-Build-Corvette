@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/builder", label: "Builder", icon: "Wrench" },
   { href: "/randomizer", label: "Randomizer", icon: "Dices" },
   { href: "/blueprints", label: "Iconic Blueprints", icon: "Ship" },
+  { href: "/assembly", label: "Assembly Manual", icon: "ClipboardList" },
   { href: "/parts", label: "Parts Codex", icon: "BookOpen" },
   { href: "/hangar", label: "My Hangar", icon: "Save" },
 ];

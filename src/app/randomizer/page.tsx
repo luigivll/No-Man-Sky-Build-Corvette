@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ShipViewPanel from "@/components/ShipViewPanel";
 import { SHIP_STYLES } from "@/lib/shipStyles";
@@ -522,6 +524,10 @@ export default function RandomizerPage() {
                 <Icon name="Wrench" className="h-3.5 w-3.5" />
                 Edit in builder
               </button>
+              <Link href="/assembly" className="btn">
+                <Icon name="ClipboardList" className="h-3.5 w-3.5" />
+                Assembly manual
+              </Link>
               <CopyButton text={() => buildToMarkdown(build)} label="Copy manifest" />
               {shareUrl ? (
                 <CopyButton

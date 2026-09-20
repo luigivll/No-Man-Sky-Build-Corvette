@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import ShipViewPanel from "./ShipViewPanel";
@@ -116,6 +118,10 @@ export default function BlueprintSheet({ blueprint }: { blueprint: Blueprint }) 
                 <Icon name="Wrench" className="h-4 w-4" />
                 Load into builder
               </button>
+              <Link href={`/assembly/${blueprint.slug}`} className="btn">
+                <Icon name="ClipboardList" className="h-3.5 w-3.5" />
+                Assembly manual
+              </Link>
               <button
                 type="button"
                 className="btn"
