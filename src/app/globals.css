@@ -1,0 +1,216 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ *
+ * NMS CORVETTE SHIPYARD — design tokens
+ * A "shipyard console" language: cold carbon panels, plasma cyan,
+ * fusion amber, high-legibility monospaced telemetry.
+ * ------------------------------------------------------------------ */
+
+@theme {
+  --color-void: #04060b;
+  --color-hull: #080b12;
+  --color-panel: #0c1119;
+  --color-panel-2: #111826;
+  --color-edge: #1c2739;
+  --color-edge-bright: #2b3b55;
+  --color-ink: #e8f0fb;
+  --color-ink-dim: #8ea0b8;
+  --color-ink-faint: #5c6c85;
+
+  --color-plasma: #4ee1ff;
+  --color-plasma-deep: #0b8fb8;
+  --color-fusion: #ffb547;
+  --color-alarm: #ff4d6d;
+  --color-verdant: #3ddc97;
+  --color-violet: #a98bff;
+
+  --font-display: "Inter", "SF Pro Display", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", ui-monospace, "Menlo", "Consolas", monospace;
+
+  --radius-panel: 14px;
+  --shadow-lift: 0 24px 60px -24px rgb(0 0 0 / 0.9), 0 0 0 1px rgb(255 255 255 / 0.04) inset;
+  --shadow-glow-plasma: 0 0 24px -6px rgb(78 225 255 / 0.55);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-edge);
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    background-color: var(--color-void);
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior: none;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-plasma) 35%, transparent);
+    color: #fff;
+  }
+
+  /* Console scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-edge-bright) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--color-edge-bright);
+    border-radius: 99px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--color-plasma-deep);
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-plasma);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  /* Frosted console panel */
+  .panel {
+    background: linear-gradient(180deg, rgb(17 24 38 / 0.82), rgb(8 11 18 / 0.9));
+    border: 1px solid var(--color-edge);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-lift);
+    backdrop-filter: blur(14px) saturate(120%);
+  }
+
+  .panel-inset {
+    background: rgb(4 6 11 / 0.6);
+    border: 1px solid var(--color-edge);
+    border-radius: 10px;
+  }
+
+  .hairline {
+    border-color: color-mix(in oklab, var(--color-edge) 70%, transparent);
+  }
+
+  .telemetry {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
+
+  .label {
+    font-size: 10px;
+    line-height: 1.1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+    font-weight: 600;
+  }
+
+  .glow-plasma {
+    box-shadow: var(--shadow-glow-plasma);
+  }
+
+  .text-glow {
+    text-shadow: 0 0 18px color-mix(in oklab, currentColor 55%, transparent);
+  }
+
+  /* Animated deep-space backdrop behind the app chrome */
+  .starfield::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(1200px 600px at 12% -10%, rgb(78 225 255 / 0.1), transparent 60%),
+      radial-gradient(900px 500px at 88% 110%, rgb(169 139 255 / 0.09), transparent 60%);
+  }
+
+  .scanlines::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.35;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgb(255 255 255 / 0.02) 0px,
+      rgb(255 255 255 / 0.02) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  }
+
+  .animate-rise {
+    animation: rise 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .animate-pop {
+    animation: pop 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .animate-sweep {
+    animation: sweep 2.4s linear infinite;
+  }
+  .animate-pulse-soft {
+    animation: pulse-soft 2.2s ease-in-out infinite;
+  }
+  .animate-spin-slow {
+    animation: spin 14s linear infinite;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
