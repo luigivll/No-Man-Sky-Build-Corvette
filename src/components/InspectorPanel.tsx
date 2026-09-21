@@ -90,8 +90,11 @@ function Telemetry() {
   const removePart = useShipyard((state) => state.removePart);
   const duplicatePart = useShipyard((state) => state.duplicatePart);
   const setRole = useShipyard((state) => state.setRole);
-  const rotate = useShipyard((state) => state.rotate);
-  const nudge = useShipyard((state) => state.nudge);
+  const setOffset = useShipyard((state) => state.setOffset);
+  const setRotation = useShipyard((state) => state.setRotation);
+  const resetTransform = useShipyard((state) => state.resetTransform);
+  const transformMode = useShipyard((state) => state.transformMode);
+  const setTransformMode = useShipyard((state) => state.setTransformMode);
 
   return (
     <div className="space-y-3 p-3">
@@ -153,6 +156,33 @@ function Telemetry() {
           </div>
 
           <div>
+            <p className="label mb-1">3D gizmo</p>
+            <div className="flex gap-1">
+              {(
+                [
+                  ["translate", "Move (W)"],
+                  ["rotate", "Rotate (E)"],
+                  ["off", "Hide (Esc)"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setTransformMode(key)}
+                  className={cx(
+                    "flex-1 rounded border px-1.5 py-1 text-[9px] font-bold uppercase tracking-wide transition-colors",
+                    transformMode === key
+                      ? "border-fusion/50 bg-fusion/12 text-fusion"
+                      : "border-edge text-ink-faint hover:text-ink-dim",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
             <p className="label mb-1">Paint role</p>
             <div className="flex flex-wrap gap-1">
               {PAINT_ROLES.map((role) => (
@@ -174,41 +204,83 @@ function Telemetry() {
           </div>
 
           <div>
-            <p className="label mb-1">Rotate (degrees)</p>
-            <div className="flex gap-1">
+            <p className="label mb-1">Offset from snap point (build units · 1 ≈ 1.5 m)</p>
+            <div className="space-y-1">
               {(["x", "y", "z"] as const).map((axis) => (
-                <div key={axis} className="flex flex-1 items-center gap-0.5">
-                  <button
-                    type="button"
-                    onClick={() => rotate(selected.placement.id, axis, -15)}
-                    className="panel-inset flex-1 py-1 text-[10px] text-ink-dim hover:text-plasma"
-                  >
-                    {axis.toUpperCase()}−
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => rotate(selected.placement.id, axis, 15)}
-                    className="panel-inset flex-1 py-1 text-[10px] text-ink-dim hover:text-plasma"
-                  >
-                    {axis.toUpperCase()}+
-                  </button>
+                <div key={axis} className="flex items-center gap-1.5">
+                  <span className="telemetry w-3 text-[10px] uppercase text-plasma">{axis}</span>
+                  <input
+                    type="range"
+                    min={-6}
+                    max={6}
+                    step={0.05}
+                    value={selected.placement.offset?.[axis] ?? 0}
+                    onChange={(event) =>
+                      setOffset(selected.placement.id, {
+                        x: selected.placement.offset?.x ?? 0,
+                        y: selected.placement.offset?.y ?? 0,
+                        z: selected.placement.offset?.z ?? 0,
+                        [axis]: Number(event.target.value),
+                      })
+                    }
+                    className="flex-1 accent-plasma"
+                  />
+                  <input
+                    type="number"
+                    step={0.05}
+                    value={round2(selected.placement.offset?.[axis] ?? 0)}
+                    onChange={(event) =>
+                      setOffset(selected.placement.id, {
+                        x: selected.placement.offset?.x ?? 0,
+                        y: selected.placement.offset?.y ?? 0,
+                        z: selected.placement.offset?.z ?? 0,
+                        [axis]: Number(event.target.value),
+                      })
+                    }
+                    className="panel-inset telemetry w-16 px-1.5 py-0.5 text-right text-[10px] outline-none focus:border-plasma/50"
+                  />
                 </div>
               ))}
             </div>
           </div>
 
           <div>
-            <p className="label mb-1">Fine offset (build units)</p>
-            <div className="flex gap-1">
+            <p className="label mb-1">Rotation (degrees, relative to the snap node)</p>
+            <div className="space-y-1">
               {(["x", "y", "z"] as const).map((axis) => (
-                <button
-                  key={axis}
-                  type="button"
-                  onClick={() => nudge(selected.placement.id, axis, 0.2)}
-                  className="panel-inset flex-1 py-1 text-[10px] text-ink-dim hover:text-plasma"
-                >
-                  {axis.toUpperCase()} +0.2
-                </button>
+                <div key={axis} className="flex items-center gap-1.5">
+                  <span className="telemetry w-3 text-[10px] uppercase text-fusion">{axis}</span>
+                  <input
+                    type="range"
+                    min={-180}
+                    max={180}
+                    step={1}
+                    value={selected.placement.rotation?.[axis] ?? 0}
+                    onChange={(event) =>
+                      setRotation(selected.placement.id, {
+                        x: selected.placement.rotation?.x ?? 0,
+                        y: selected.placement.rotation?.y ?? 0,
+                        z: selected.placement.rotation?.z ?? 0,
+                        [axis]: Number(event.target.value),
+                      })
+                    }
+                    className="flex-1 accent-fusion"
+                  />
+                  <input
+                    type="number"
+                    step={1}
+                    value={round2(selected.placement.rotation?.[axis] ?? 0)}
+                    onChange={(event) =>
+                      setRotation(selected.placement.id, {
+                        x: selected.placement.rotation?.x ?? 0,
+                        y: selected.placement.rotation?.y ?? 0,
+                        z: selected.placement.rotation?.z ?? 0,
+                        [axis]: Number(event.target.value),
+                      })
+                    }
+                    className="panel-inset telemetry w-16 px-1.5 py-0.5 text-right text-[10px] outline-none focus:border-fusion/50"
+                  />
+                </div>
               ))}
             </div>
           </div>
@@ -217,10 +289,22 @@ function Telemetry() {
             <Button size="sm" className="flex-1" onClick={() => duplicatePart(selected.placement.id)}>
               Duplicate
             </Button>
+            <Button
+              size="sm"
+              className="flex-1"
+              onClick={() => resetTransform(selected.placement.id)}
+              title="Clear offset and rotation (0)"
+            >
+              Reset
+            </Button>
             <Button size="sm" variant="danger" className="flex-1" onClick={() => removePart(selected.placement.id)}>
-              Remove branch
+              Delete
             </Button>
           </div>
+          <p className="text-[9px] leading-relaxed text-ink-faint">
+            Drag the gizmo in the viewport, or use these fields. Offsets are relative to the snap
+            point, so children stay attached and move with the module.
+          </p>
         </div>
       ) : (
         <p className="panel-inset px-2.5 py-2 text-[10px] text-ink-faint">
@@ -352,3 +436,6 @@ export const ROLE_HINT: Record<PaintRole, string> = {
   glass: "Canopies and viewports",
   emissive: "Engine and reactor glow",
 };
+
+/** Keeps controlled number inputs from fighting trailing decimals. */
+const round2 = (value: number): number => Math.round(value * 100) / 100;

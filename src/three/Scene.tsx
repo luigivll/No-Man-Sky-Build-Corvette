@@ -8,12 +8,74 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import type { AssemblyResult } from "@/domain/types";
 import { PartMesh } from "./PartMesh";
 import { SnapPoints } from "./SnapPoints";
-import { useShipyard, type CameraPreset } from "@/lib/store";
+import { TransformGizmo } from "./TransformGizmo";
+import { useShipyard, type CameraPreset, type ViewportTheme } from "@/lib/store";
 
 interface SceneProps {
   assembly: AssemblyResult;
   onCapture?: (register: () => string | null) => void;
 }
+
+/**
+ * Full lighting recipes rather than a colour tint: a light studio needs a
+ * brighter hemisphere, softer shadows, a pale floor and cool key light, or the
+ * hull just turns grey instead of readable.
+ */
+const THEMES: Record<
+  ViewportTheme,
+  {
+    background: string;
+    fogNear: number;
+    fogFar: number;
+    hemisphere: [string, string, number];
+    keyIntensity: number;
+    keyColor: string;
+    fillIntensity: number;
+    fillColor: string;
+    rimIntensity: number;
+    rimColor: string;
+    groundColor: string;
+    cellColor: string;
+    sectionColor: string;
+    shadowOpacity: number;
+    envIntensity: number;
+  }
+> = {
+  dark: {
+    background: "#04060b",
+    fogNear: 90,
+    fogFar: 220,
+    hemisphere: ["#7fb6d8", "#121820", 0.55],
+    keyIntensity: 2.1,
+    keyColor: "#eaf6ff",
+    fillIntensity: 0.8,
+    fillColor: "#4ee1ff",
+    rimIntensity: 40,
+    rimColor: "#0b8fb8",
+    groundColor: "#000000",
+    cellColor: "#16283a",
+    sectionColor: "#1f4a63",
+    shadowOpacity: 0.55,
+    envIntensity: 1,
+  },
+  light: {
+    background: "#eef2f7",
+    fogNear: 120,
+    fogFar: 300,
+    hemisphere: ["#ffffff", "#c6d2e0", 1.25],
+    keyIntensity: 2.6,
+    keyColor: "#ffffff",
+    fillIntensity: 1.1,
+    fillColor: "#cfe8ff",
+    rimIntensity: 26,
+    rimColor: "#8fb6d8",
+    groundColor: "#8595a8",
+    cellColor: "#c3ceda",
+    sectionColor: "#93a4b8",
+    shadowOpacity: 0.3,
+    envIntensity: 1.45,
+  },
+};
 
 const PRESET_VIEWS: Record<CameraPreset, { position: [number, number, number]; target: [number, number, number] }> = {
   orbit: { position: [22, 12, 26], target: [0, 0, 0] },
@@ -116,6 +178,7 @@ function Hull({ assembly }: { assembly: AssemblyResult }) {
       ))}
       {showBounds && <BoundsBox bounds={assembly.bounds} />}
       <SnapPoints assembly={assembly} />
+      <TransformGizmo assembly={assembly} />
     </group>
   );
 }
@@ -139,13 +202,39 @@ function BoundsBox({ bounds }: { bounds: AssemblyResult["bounds"] }) {
   );
 }
 
-function Effects() {
+function Effects({ intensity, theme }: { intensity: number; theme: ViewportTheme }) {
+  const bounce = theme === "light" ? "#ffffff" : "#20304a";
+  const bounceIntensity = theme === "light" ? 1.6 : 0.7;
   return (
-    <Environment resolution={256} frames={1}>
-      <Lightformer intensity={2.4} position={[0, 12, 0]} scale={[24, 24, 1]} rotation-x={Math.PI / 2} color="#dff3ff" />
-      <Lightformer intensity={1.4} position={[-14, 4, 8]} scale={[10, 10, 1]} rotation-y={Math.PI / 2} color="#4ee1ff" />
-      <Lightformer intensity={1.1} position={[14, 2, -8]} scale={[10, 10, 1]} rotation-y={-Math.PI / 2} color="#ffb547" />
-      <Lightformer intensity={0.7} position={[0, -10, 0]} scale={[24, 24, 1]} rotation-x={-Math.PI / 2} color="#20304a" />
+    <Environment resolution={256} frames={1} environmentIntensity={intensity}>
+      <Lightformer
+        intensity={2.4 * intensity}
+        position={[0, 12, 0]}
+        scale={[24, 24, 1]}
+        rotation-x={Math.PI / 2}
+        color="#dff3ff"
+      />
+      <Lightformer
+        intensity={1.4 * intensity}
+        position={[-14, 4, 8]}
+        scale={[10, 10, 1]}
+        rotation-y={Math.PI / 2}
+        color="#4ee1ff"
+      />
+      <Lightformer
+        intensity={1.1 * intensity}
+        position={[14, 2, -8]}
+        scale={[10, 10, 1]}
+        rotation-y={-Math.PI / 2}
+        color="#ffb547"
+      />
+      <Lightformer
+        intensity={bounceIntensity}
+        position={[0, -10, 0]}
+        scale={[24, 24, 1]}
+        rotation-x={-Math.PI / 2}
+        color={bounce}
+      />
     </Environment>
   );
 }
@@ -166,6 +255,8 @@ function CaptureBridge({ onCapture }: { onCapture?: (register: () => string | nu
 }
 
 export function ShipCanvas({ assembly, onCapture }: SceneProps) {
+  const theme = THEMES[useShipyard((state) => state.theme)];
+
   return (
     <Canvas
       shadows
@@ -179,42 +270,59 @@ export function ShipCanvas({ assembly, onCapture }: SceneProps) {
       camera={{ position: PRESET_VIEWS.orbit.position, fov: 42, near: 0.1, far: 500 }}
       onPointerMissed={() => useShipyard.getState().select(null)}
     >
-      <color attach="background" args={["#04060b"]} />
-      <fog attach="fog" args={["#04060b", 90, 220]} />
+      <color attach="background" args={[theme.background]} />
+      <fog attach="fog" args={[theme.background, theme.fogNear, theme.fogFar]} />
 
-      <hemisphereLight args={["#7fb6d8", "#121820", 0.55]} />
+      <hemisphereLight args={theme.hemisphere} />
       <directionalLight
         position={[24, 30, 18]}
-        intensity={2.1}
-        color="#eaf6ff"
+        intensity={theme.keyIntensity}
+        color={theme.keyColor}
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-bias={-0.0006}
       >
         <orthographicCamera attach="shadow-camera" args={[-40, 40, 40, -40, 0.5, 120]} />
       </directionalLight>
-      <directionalLight position={[-20, 10, -16]} intensity={0.8} color="#4ee1ff" />
-      <pointLight position={[0, -12, 0]} intensity={40} color="#0b8fb8" distance={60} />
+      <directionalLight
+        position={[-20, 10, -16]}
+        intensity={theme.fillIntensity}
+        color={theme.fillColor}
+      />
+      <pointLight position={[0, -12, 0]} intensity={theme.rimIntensity} color={theme.rimColor} distance={60} />
 
       <Suspense fallback={null}>
-        <Effects />
+        <Effects intensity={theme.envIntensity} theme={useShipyard.getState().theme} />
         <Hull assembly={assembly} />
       </Suspense>
+
+      {/* Studio floor: catches the shadow and gives the eye a horizon line. */}
+      <mesh rotation-x={-Math.PI / 2} position={[0, -14.02, 0]} receiveShadow>
+        <planeGeometry args={[400, 400]} />
+        <meshStandardMaterial color={theme.background} roughness={0.95} metalness={0} />
+      </mesh>
 
       <Grid
         position={[0, -14, 0]}
         args={[200, 200]}
         cellSize={2}
         cellThickness={0.5}
-        cellColor="#16283a"
+        cellColor={theme.cellColor}
         sectionSize={10}
         sectionThickness={1}
-        sectionColor="#1f4a63"
+        sectionColor={theme.sectionColor}
         fadeDistance={150}
         fadeStrength={1.4}
         infiniteGrid
       />
-      <ContactShadows position={[0, -13.9, 0]} opacity={0.55} scale={90} blur={2.6} far={26} color="#000000" />
+      <ContactShadows
+        position={[0, -13.9, 0]}
+        opacity={theme.shadowOpacity}
+        scale={90}
+        blur={2.6}
+        far={26}
+        color={theme.groundColor}
+      />
 
       <CameraRig />
       <AutoRotateSync />

@@ -51,13 +51,28 @@ export default function ShipyardPage() {
         event.preventDefault();
         store.removePart(store.selectedId);
       }
-      if (event.key.toLowerCase() === "g") store.toggle("showSnapPoints");
-      if (event.key.toLowerCase() === "r") store.toggle("autoRotate");
-      if (event.key.toLowerCase() === "b") store.toggle("showBounds");
+      const key = event.key.toLowerCase();
+      if (key === "g") store.toggle("showSnapPoints");
+      if (key === "o") store.toggle("autoRotate");
+      if (key === "b") store.toggle("showBounds");
+      // Transform gizmo modes, matching the usual DCC shortcuts.
+      if (key === "w") store.setTransformMode("translate");
+      if (key === "e") store.setTransformMode("rotate");
+      if (key === "escape") {
+        if (store.selectedId) store.select(null);
+        else store.setTransformMode("off");
+      }
+      if (key === "0" && store.selectedId) store.resetTransform(store.selectedId);
+      if (key === "l") store.setTheme(store.theme === "dark" ? "light" : "dark");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [store]);
+
+  /* Drive the CSS custom properties for the whole chrome, not just the canvas. */
+  useEffect(() => {
+    globalThis.document.documentElement.dataset.theme = store.theme;
+  }, [store.theme]);
 
   return (
     <main className="relative flex h-screen flex-col overflow-hidden bg-void text-ink">
@@ -134,27 +149,71 @@ export default function ShipyardPage() {
               ))}
             </div>
 
-            <div className="panel pointer-events-auto flex gap-1 p-1">
-              {(
-                [
-                  ["autoRotate", "Orbit", "R"],
-                  ["showSnapPoints", "Snap", "G"],
-                  ["showBounds", "Bounds", "B"],
-                ] as const
-              ).map(([key, label, shortcut]) => (
+            <div className="flex flex-col items-end gap-1">
+              {/* Manipulation modes — only meaningful with a module selected. */}
+              <div className="panel pointer-events-auto flex gap-1 p-1">
+                {(
+                  [
+                    ["translate", "Move", "W"],
+                    ["rotate", "Rotate", "E"],
+                    ["off", "Hide", "Esc"],
+                  ] as const
+                ).map(([key, label, shortcut]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => store.setTransformMode(key)}
+                    disabled={!store.selectedId && key !== "off"}
+                    title={
+                      store.selectedId
+                        ? `${label} selected module (${shortcut})`
+                        : "Select a module first"
+                    }
+                    className={cx(
+                      "rounded px-2 py-1 text-[9px] font-bold uppercase tracking-wider transition-colors disabled:opacity-35",
+                      store.transformMode === key
+                        ? "bg-fusion/20 text-fusion"
+                        : "text-ink-faint hover:text-ink-dim",
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="panel pointer-events-auto flex gap-1 p-1">
+                {(
+                  [
+                    ["autoRotate", "Orbit", "O"],
+                    ["showSnapPoints", "Snap", "G"],
+                    ["showBounds", "Bounds", "B"],
+                  ] as const
+                ).map(([key, label, shortcut]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => store.toggle(key)}
+                    title={`${label} (${shortcut})`}
+                    className={cx(
+                      "rounded px-2 py-1 text-[9px] font-bold uppercase tracking-wider transition-colors",
+                      store[key] ? "bg-plasma/15 text-plasma" : "text-ink-faint hover:text-ink-dim",
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
                 <button
-                  key={key}
                   type="button"
-                  onClick={() => store.toggle(key)}
-                  title={`${label} (${shortcut})`}
+                  onClick={() => store.setTheme(store.theme === "dark" ? "light" : "dark")}
+                  title="Studio lighting (L)"
                   className={cx(
                     "rounded px-2 py-1 text-[9px] font-bold uppercase tracking-wider transition-colors",
-                    store[key] ? "bg-plasma/15 text-plasma" : "text-ink-faint hover:text-ink-dim",
+                    store.theme === "light" ? "bg-plasma/15 text-plasma" : "text-ink-faint hover:text-ink-dim",
                   )}
                 >
-                  {label}
+                  {store.theme === "light" ? "Light" : "Dark"}
                 </button>
-              ))}
+              </div>
             </div>
           </div>
 

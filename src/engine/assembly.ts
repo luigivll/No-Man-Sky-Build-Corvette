@@ -12,6 +12,7 @@ import type {
 import { PART_BY_ID } from "@/domain/parts";
 import {
   add,
+  basisToEuler,
   composeBasis,
   eulerToBasis,
   projectHalf,
@@ -258,7 +259,7 @@ export function assemble(document: AssemblyDocument): AssemblyResult {
   for (const node of solved.values()) {
     const box = basisOf(node.basis, node.position, node.part.size);
     const aabb = aabbOfObb(box);
-    const euler = basisToEulerLocal(node.basis);
+    const euler = basisToEuler(node.basis);
     assembled.push({
       placement: node.placement,
       part: node.part,
@@ -330,13 +331,6 @@ export function assemble(document: AssemblyDocument): AssemblyResult {
     collisions,
     unresolved,
   };
-}
-
-function basisToEulerLocal(basis: Basis): Vec3 {
-  const x = Math.asin(Math.max(-1, Math.min(1, -basis[2]!.y)));
-  const y = Math.atan2(basis[2]!.x, basis[2]!.z);
-  const z = Math.atan2(basis[1]!.y, basis[0]!.y);
-  return { x, y, z };
 }
 
 export const storeyIndex = (y: number): number => Math.round(y / STOREY_HEIGHT);

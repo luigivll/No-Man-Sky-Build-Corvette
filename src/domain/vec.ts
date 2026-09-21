@@ -124,11 +124,23 @@ export function toMatrix4(position: Vec3, basis: Basis): readonly number[] {
   ];
 }
 
-/** Recovers a YXZ euler triple from a basis. */
+/**
+ * Recovers a YXZ euler triple from a basis — the exact inverse of
+ * `eulerToBasis`. Reading the columns as M[col][row]:
+ *
+ *   x = asin(−M[1][2])   →  −b[2].y
+ *   y = atan2(M[0][2], M[2][2])  →  b[2].x, b[2].z
+ *   z = atan2(M[1][0], M[1][1])  →  b[0].y, b[1].y
+ *
+ * The z arguments are easy to transpose; doing so silently adds 90° of roll to
+ * every axis-aligned frame, so the round trip is covered by tests.
+ * At pitch ±90° yaw and roll become degenerate (gimbal lock) and the split is
+ * arbitrary, though the resulting frame is still correct.
+ */
 export function basisToEuler(b: Basis): Vec3 {
   const x = Math.asin(clamp(-b[2]!.y, -1, 1));
   const y = Math.atan2(b[2]!.x, b[2]!.z);
-  const z = Math.atan2(b[1]!.y, b[0]!.y);
+  const z = Math.atan2(b[0]!.y, b[1]!.y);
   return { x, y, z };
 }
 

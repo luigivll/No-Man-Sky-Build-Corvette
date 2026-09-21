@@ -11,17 +11,27 @@ import type {
   Palette,
   PaintRole,
   Placement,
+  Vec3,
 } from "@/domain/types";
 import { DEFAULT_PALETTE, PALETTES } from "@/domain/palettes";
 import { getBlueprint } from "@/data/blueprints";
 import { expandBlueprint } from "@/engine/blueprint";
 import { generate, randomSeed } from "@/engine/generator";
 import { BUILD_LIMITS } from "@/domain/constants";
+import { roundVec } from "@/domain/vec";
 import { createId } from "@/lib/id";
 
 export type BuilderMode = "manual" | "generator" | "hangar";
 
 export type CameraPreset = "orbit" | "front" | "side" | "top" | "rear" | "cinematic";
+
+/** Viewport + chrome lighting. `light` is a full studio setup, not a tint. */
+export type ViewportTheme = "dark" | "light";
+
+/** How the 3D gizmo manipulates the selected module. */
+export type TransformMode = "translate" | "rotate" | "off";
+
+export type Axis = "x" | "y" | "z";
 
 export interface Toast {
   id: string;
@@ -42,6 +52,8 @@ interface ShipyardState {
   wireframe: boolean;
   autoRotate: boolean;
   exploded: number;
+  theme: ViewportTheme;
+  transformMode: TransformMode;
 
   /* generator panel */
   tag: DesignTag;
@@ -65,13 +77,23 @@ interface ShipyardState {
   setCameraPreset: (preset: CameraPreset) => void;
   toggle: (key: "showSnapPoints" | "showBounds" | "wireframe" | "autoRotate") => void;
   setExploded: (value: number) => void;
+  setTheme: (theme: ViewportTheme) => void;
+  setTransformMode: (mode: TransformMode) => void;
 
   addPart: (partId: string, parentId: string | null, node: string | null, role?: PaintRole) => string | null;
   removePart: (id: string) => void;
   duplicatePart: (id: string) => void;
   setRole: (id: string, role: PaintRole) => void;
-  nudge: (id: string, axis: "x" | "y" | "z", delta: number) => void;
-  rotate: (id: string, axis: "x" | "y" | "z", delta: number) => void;
+  nudge: (id: string, axis: Axis, delta: number) => void;
+  rotate: (id: string, axis: Axis, delta: number) => void;
+  /** Absolute local offset, in build units, relative to the snap node. */
+  setOffset: (id: string, offset: Vec3) => void;
+  /** Absolute local rotation, in degrees, relative to the snap node. */
+  setRotation: (id: string, rotation: Vec3) => void;
+  resetTransform: (id: string) => void;
+  /** Snapshots history once, before a drag; `endTransform` closes it. */
+  beginTransform: () => void;
+  endTransform: () => void;
 
   loadBlueprint: (id: string) => void;
   runGenerator: (options?: Partial<GeneratorOptions>) => void;
@@ -121,8 +143,10 @@ export const useShipyard = create<ShipyardState>()(
     showSnapPoints: false,
     showBounds: false,
     wireframe: false,
-    autoRotate: true,
+    autoRotate: false,
     exploded: 0,
+    theme: "dark",
+    transformMode: "translate",
     tag: "combat-heavy",
     base: "normal",
     seed: 20250827,
@@ -140,6 +164,17 @@ export const useShipyard = create<ShipyardState>()(
     setCameraPreset: (cameraPreset) => set({ cameraPreset, autoRotate: false }),
     toggle: (key) => set((state) => ({ [key]: !state[key] }) as Partial<ShipyardState>),
     setExploded: (exploded) => set({ exploded }),
+    setTheme: (theme) => set({ theme }),
+    setTransformMode: (transformMode) => set({ transformMode }),
+
+    /**
+     * A drag fires dozens of change events. Snapshotting history on every one
+     * would fill the undo stack with sub-millimetre steps, so `beginTransform`
+     * pushes the pre-drag document once and the drags themselves mutate in place.
+     */
+    beginTransform: () =>
+      set((state) => ({ past: [...state.past, state.document].slice(-MAX_HISTORY), future: [] })),
+    endTransform: () => set({}),
 
     addPart: (partId, parentId, node, role) => {
       const state = get();
@@ -239,6 +274,40 @@ export const useShipyard = create<ShipyardState>()(
         ),
       };
       set({ document: next });
+    },
+
+    setOffset: (id, offset) =>
+      set((state) => ({
+        document: {
+          ...state.document,
+          placements: state.document.placements.map((placement) =>
+            placement.id === id ? { ...placement, offset: roundVec(offset) } : placement,
+          ),
+        },
+      })),
+
+    setRotation: (id, rotation) =>
+      set((state) => ({
+        document: {
+          ...state.document,
+          placements: state.document.placements.map((placement) =>
+            placement.id === id ? { ...placement, rotation: roundVec(rotation) } : placement,
+          ),
+        },
+      })),
+
+    resetTransform: (id) => {
+      const state = get();
+      const next = {
+        ...state.document,
+        placements: state.document.placements.map((placement) =>
+          placement.id === id
+            ? { ...placement, offset: undefined, rotation: undefined }
+            : placement,
+        ),
+      };
+      set(pushHistory(state, next));
+      get().notify("Module returned to its snap position", "info");
     },
 
     loadBlueprint: (id) => {
