@@ -1,0 +1,6 @@
+{
+  "_comment": "Copy to manifest.json and drop matching .glb files next to it. Keys are the in-game scene-node ids used by src/domain/parts.ts. Anything missing falls back to the procedural mesh.",
+  "BIG_COK1X2_A": { "file": "BIG_COK1X2_A.glb", "scale": 1 },
+  "BIG_HAB1X2_A": { "file": "BIG_HAB1X2_A.glb", "scale": 1 },
+  "BIG_LND1X1_A": { "file": "BIG_LND1X1_A.glb", "scale": 1 }
+}
