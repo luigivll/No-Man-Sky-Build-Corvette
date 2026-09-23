@@ -1212,7 +1212,8 @@ export function buildShipMesh(build: Build, options: BuildMeshOptions = {}): Shi
     (boundsNow.min[2] + boundsNow.max[2]) / 2,
   ];
 
-  for (const flourish of style.flourishes) {
+  // no hull, no dressing: an empty build must render completely empty
+  for (const flourish of parts.length > 0 ? style.flourishes : []) {
     const faces = flourishGeometry(flourish, {
       style,
       bounds: boundsNow,
@@ -1415,8 +1416,59 @@ function flourishGeometry(kind: FlourishId, ctx: FlourishCtx): Face3D[] {
       }
       break;
     }
-    case "dorsal-towers":
-    case "hull-rim-glow":
+    case "dorsal-towers": {
+      // Twin canted tail fins rooted on the aft deck: the signature silhouette
+      // of a stealth interceptor like the Blackbird. The root sits inside the
+      // deck so the fin can never look detached.
+      const finHeight = Math.min(1.75, 0.8 + ctx.halfWidth * 0.52);
+      const rootChord = ctx.bodyLength * 0.38;
+      const z = ctx.hullBack - ctx.bodyLength * 0.15;
+      const cant = 0.24; // outward lean, reads as a V from behind
+      const roll = Math.PI / 2 - cant;
+      for (const side of [-1, 1] as const) {
+        const rootX = ctx.centre[0] + side * ctx.halfWidth * 0.58;
+        // foil spans +X, so rolling it upright stands the fin on its root
+        faces.push(...transformFaces(
+          foil(finHeight, rootChord, 0.14, rootChord * 0.62, 0, scaleRgb(hull, 0.92), { taper: 0.5 }),
+          { pos: [rootX, 0.06, z], rot: fromAxisAngle([0, 0, 1], side * roll) },
+        ));
+        // lit leading edge on the outboard face of each fin
+        faces.push(...transformFaces(
+          strip(0.06, 0.06, rootChord * 0.72, glow, "emissive"),
+          {
+            pos: [rootX + side * 0.09, finHeight * 0.42, z - rootChord * 0.08],
+            rot: fromAxisAngle([0, 0, 1], side * roll),
+          },
+        ));
+        // short ventral strake under the tail
+        faces.push(...transformFaces(
+          foil(finHeight * 0.34, rootChord * 0.55, 0.12, 0, 0, scaleRgb(dark, 1.05), { taper: 0.45 }),
+          { pos: [rootX, -0.42, z], rot: fromAxisAngle([0, 0, 1], -side * roll) },
+        ));
+      }
+      break;
+    }
+    case "hull-rim-glow": {
+      // Light signature: strips along each flank, a dorsal nose strake and an
+      // aft light bar, so a matte black hull still reads its shape.
+      for (const side of [-1, 1] as const) {
+        faces.push(...transformFaces(
+          strip(0.06, 0.07, ctx.bodyLength * 0.62, glow, "emissive"),
+          { pos: [ctx.centre[0] + side * ctx.halfWidth * 0.99, 0.04, ctx.centre[2]] },
+        ));
+      }
+      faces.push(...transformFaces(
+        strip(0.08, 0.05, ctx.bodyLength * 0.26, glow, "emissive"),
+        {
+          pos: [ctx.centre[0], ctx.bounds.max[1] - 0.04, ctx.hullFront + ctx.bodyLength * 0.14],
+        },
+      ));
+      faces.push(...transformFaces(
+        strip(ctx.halfWidth * 1.2, 0.06, 0.06, glow, "emissive"),
+        { pos: [ctx.centre[0], 0.1, ctx.hullBack + 0.03] },
+      ));
+      break;
+    }
     default:
       break;
   }

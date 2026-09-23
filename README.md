@@ -60,10 +60,11 @@ diagram:
   camera presets (Hero / Starboard / Plan / Bow / Stern), or let the **turntable**
   spin it.
 * Hover any module to see **which part you are looking at**.
-* Pick one of six **hull families** — **Standard Corvette**, **Sentinel
-  Interceptor**, **Solar Sail**, **Exotic Royal**, **Pirate Raider** and **Living
-  Ship** — to change plating, trim, engine glow, trail colour and background in one
-  click. Tap a second family to **fuse** them into a hybrid hull.
+* Pick one of seven **hull families** — **Standard Corvette**, **Sentinel
+  Interceptor**, **Solar Sail**, **Exotic Royal**, **Pirate Raider**, **Living
+  Ship** and **Stealth Prototype** — to change plating, trim, engine glow, trail
+  colour and background in one click. Tap a second family to **fuse** them into a
+  hybrid hull.
 * Flip the toggle to the **blueprint projection** at any time for the technical
   top-down diagram.
 
@@ -90,8 +91,9 @@ no WebGL, no 3D library, no external assets:
    parent-socket pair and its **gap** for every module, which is what `npm run
    verify` asserts is ~0
 4. hull **style flourishes** (Sentinel engine rings, blade wings, solar sails,
-   dorsal fins, pirate spikes, organic veins) are generated from the same hull
-   bounds and rooted inside the plating, so they can never float free either
+   canted tail fins, pirate spikes, organic veins, flank rim glow) are generated
+   from the same hull bounds and rooted inside the plating, so they can never
+   float free either.
 5. faces are shaded with ambient + diffuse (with a fill light so near-black
    Sentinel plating still reads) + rim + specular lighting, then sorted
    back-to-front (painter's algorithm) and projected as SVG polygons
@@ -153,7 +155,8 @@ rendered in:
 * **No Man's Sky** — Sentinel Interceptor and Corrupted Dreadnought, both built in
   Sentinel plating with ring engines
 * **Sci-fi & superhero** — UNSC Pelican, The Rocinante, USS Enterprise, Serenity,
-  Viper Mk II, SSV Normandy SR-2, USCSS Nostromo, Thunderbird 2 and The Batwing
+  Viper Mk II, SSV Normandy SR-2, USCSS Nostromo, Thunderbird 2, The Batwing and
+  the X-Men Blackbird
 
 Each sheet lists every module with quantities and notes, marks optional cosmetic
 parts, prices the vendor-buyable against the salvage-only modules, adds the
@@ -179,7 +182,7 @@ re-renders itself:
 | --- | --- |
 | `data/parts.json` | 50 Corvette modules across 10 categories, with prices, sourcing, rarity, mass, cargo slots and stat weights |
 | `data/blueprints.json` | The 20 pop-culture recipes, each with a `style` (hull family) and part refs from `parts.json` |
-| `src/lib/shipStyles.ts` | The six hull families: plating, trim, trail, environment, flourish set and module preferences |
+| `src/lib/shipStyles.ts` | The seven hull families: plating, trim, trail, environment, flourish set and module preferences |
 
 `data/parts.json` also carries game rules used throughout the UI: the 160-module
 cap, the 100-module soft cap, the 3-floor height recommendation, the 11 reactor
@@ -234,7 +237,7 @@ src/
   lib/
     build.ts              # build math: stats, costs, requirements, markdown export
     randomizer.ts         # role weighting, sizing, guarantees, sentinel mode + fusion
-    shipStyles.ts         # the six hull families, fusion blending, hull paints
+    shipStyles.ts         # the seven hull families, fusion blending, hull paints
     render3d.ts           # software 3D renderer: sockets, geometry, lighting, projection
     schematic.ts          # hull layout geometry (blueprint view)
     names.ts              # seeded RNG + procedural ship names

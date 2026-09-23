@@ -1801,6 +1801,123 @@
         "Rendered in Sentinel style so the entire hull goes corrupted black with red trim.",
         "Watch the 160 cap: trim the optional plating before you trim guns."
       ]
+    },
+    {
+      "id": "xmen-blackbird",
+      "slug": "xmen-blackbird",
+      "name": "X-Men Blackbird",
+      "designation": "SR-73 Stealth Transport",
+      "franchise": "Marvel",
+      "classification": "Blackbird (X-Men stealth VTOL jet)",
+      "role": "Stealth Transport",
+      "difficulty": "A",
+      "accent": "#4a5a70",
+      "accent2": "#5fb6ff",
+      "style": "stealth",
+      "blurb": "Black radar-absorbent plating, a long needle fuselage, delta wings swept hard and twin canted tail fins. Carries the team, goes in unseen, and lights up blue when it climbs.",
+      "signatureLine": "Blackbird is inbound.",
+      "parts": [
+        {
+          "id": "cockpit-titan",
+          "qty": 1,
+          "note": "Arrowhead bridge - the Blackbird is all nose."
+        },
+        {
+          "id": "hab-ambassador",
+          "qty": 2,
+          "note": "Crew compartment amidships; the team rides here."
+        },
+        {
+          "id": "walkway-ambassador",
+          "qty": 3,
+          "note": "The long spine that makes the silhouette read as a jet, not a shuttle."
+        },
+        {
+          "id": "bay-internal",
+          "qty": 1,
+          "note": "Ventral ramp - the Blackbird lands and drops the ramp."
+        },
+        {
+          "id": "engine-main-titan",
+          "qty": 2,
+          "note": "Twin high-mounted boosters, one per flank, tucked against the tail."
+        },
+        {
+          "id": "engine-main-pyrodrive",
+          "qty": 1,
+          "note": "Centre afterburner for the climb-out."
+        },
+        {
+          "id": "engine-light-twinecho",
+          "qty": 2,
+          "note": "Vectoring nozzles for the vertical landing."
+        },
+        {
+          "id": "wing-arcadia-sfoil",
+          "qty": 2,
+          "note": "The delta: long foils swept back hard off the flank roots."
+        },
+        {
+          "id": "wing-speedbird",
+          "qty": 2,
+          "note": "Wingtip strakes."
+        },
+        {
+          "id": "wing-vesper-diffuser",
+          "qty": 2,
+          "note": "Exhaust diffusers behind the engine deck."
+        },
+        {
+          "id": "wing-hardframe",
+          "qty": 2,
+          "note": "Plating over the wing roots."
+        },
+        {
+          "id": "weapon-deadeye",
+          "qty": 2,
+          "note": "Nose cannons on the centreline."
+        },
+        {
+          "id": "weapon-phasebeam",
+          "qty": 1,
+          "note": "Belly beam emitter."
+        },
+        {
+          "id": "shield-deflector",
+          "qty": 1
+        },
+        {
+          "id": "shield-ion",
+          "qty": 1,
+          "note": "Stealth hulls still need a barrier."
+        },
+        {
+          "id": "reactor-azimuth",
+          "qty": 1,
+          "note": "Pulse-engine reactor for the dash."
+        },
+        {
+          "id": "reactor-medusa",
+          "qty": 1,
+          "note": "Second reactor for handling in the turn."
+        },
+        {
+          "id": "gear-hydraulic",
+          "qty": 2
+        },
+        {
+          "id": "gear-magfield",
+          "qty": 2,
+          "note": "Hover pads - it sets down light, no runway."
+        }
+      ],
+      "buildTips": [
+        "Rendered in Stealth Prototype: matte black plating, blue-white trim and twin tail fins on the aft deck.",
+        "Build it long: the fuselage should be roughly twice the span of the wings or it stops looking like a jet.",
+        "Sweep both foils back at the same angle. Flat wings turn it into a shuttle.",
+        "Twin tail fins are the whole signature - they come from the hull style, so do not cover the aft deck with Habs.",
+        "Two reactors and two shields: it is a transport that has to survive being shot at."
+      ]
     }
   ]
 }

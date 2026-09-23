@@ -16,7 +16,8 @@ export type ShipFamily =
   | "solar"
   | "exotic"
   | "pirate"
-  | "organic";
+  | "organic"
+  | "stealth";
 
 export type FlourishId =
   | "ring-engines"
@@ -148,6 +149,22 @@ export const SHIP_STYLES: ShipStyle[] = [
     prefers: ["bubble", "exotic", "slots", "corridor"],
     boost: ["habitation", "shield", "reactor"],
   },
+  {
+    id: "stealth",
+    label: "Stealth Prototype",
+    family: "stealth",
+    blurb:
+      "Matte black radar-absorbent plating with cool blue-white trim, twin tail fins instead of blades and a long glowing rim. Built for the X-Men's hangar.",
+    hullBase: "#14181f",
+    hullDark: "#05070a",
+    emissive: "#5fb6ff",
+    emissiveHot: "#dcefff",
+    trail: "#79c2ff",
+    environment: "space",
+    flourishes: ["dorsal-towers", "hull-rim-glow"],
+    prefers: ["stealth", "black", "wing", "diffuser"],
+    boost: ["wing", "engine-main"],
+  },
 ];
 
 /**
@@ -168,6 +185,7 @@ export const familyLabel: Record<ShipFamily, string> = {
   exotic: "Exotic",
   pirate: "Pirate",
   organic: "Living",
+  stealth: "Stealth",
 };
 
 /**
