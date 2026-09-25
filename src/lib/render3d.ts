@@ -17,6 +17,7 @@
 import { categoryById } from "./data";
 import { expandParts } from "./build";
 import { styleById, type FlourishId, type ShipStyle } from "./shipStyles";
+import { realFaces } from "./realMeshes";
 import type { Build, Part, PartCategoryId } from "./types";
 
 export type V3 = [number, number, number];
@@ -478,7 +479,72 @@ function glowOf(style: ShipStyle, category: PartCategoryId, scale = 1): [number,
   return scaleRgb(mixRgb(base, accent, 0.25), scale);
 }
 
+/**
+ * Real-mesh wrapper.
+ *
+ * `moduleSpecPolygons` below still builds the stand-in hull the layout engine was
+ * authored against.  When the part has a real game asset AND the mesh pack has
+ * loaded, the stand-in faces are swapped for the actual corvette geometry fitted
+ * into the very same local box, so every socket, offset and gap the layout
+ * computes stays valid.
+ *
+ * Falling back to the polygons is deliberate: the pack is ~4 MB and only exists
+ * in the browser after a fetch, so the first client render is always polygonal
+ * and upgrades itself once the meshes arrive.
+ */
+const WING_LIKE = new Set<PartCategoryId>(["wing", "engine-main", "engine-light"]);
+
+/** how hard each family leans on its emissive trim */
+const GLOW_STRENGTH: Partial<Record<PartCategoryId, number>> = {
+  cockpit: 0.85,
+  reactor: 1,
+  "engine-main": 1,
+  "engine-light": 0.9,
+  shield: 0.8,
+  weapon: 0.6,
+  wing: 0.45,
+  habitation: 0.5,
+  access: 0.45,
+  landing: 0.35,
+};
+
+const USE_REAL_MESHES = false;
+
+/**
+ * NOTE (verified, do not just flip this on): fitting the real mesh into the
+ * polygon spec's bounding box renders a jumble — the boxes were authored for
+ * abstract shapes and do not correspond to the assets' own mount points, so
+ * modules intersect and drift once they carry real volume.  The meshes are
+ * real (11k triangles on the Razor Crest vs 930 before) and they look right
+ * individually; what is missing is a layout built on the game's own lattice
+ * (one cell = 6.0 x 3.0 x 6.0 source units, facing encoded in the asset name).
+ * That rewrite is the next step; until then the polygon hull stays.
+ */
 function moduleSpec(part: Part, ctx: SpecCtx, opts: SpecOpts = {}): ModuleSpec {
+  const spec = moduleSpecPolygons(part, ctx, opts);
+  if (!USE_REAL_MESHES) return spec;
+  const assetId = (part as { assetId?: string }).assetId;
+  if (!assetId) return spec;
+
+  const box = boundsOf([
+    { key: `${part.id}#0`, partId: part.id, partName: part.name, category: part.category, faces: spec.faces },
+  ]);
+  const glowRgb = glowOf(ctx.style, part.category);
+  const real = realFaces(assetId, {
+    fit: box,
+    hull: [0, 0, 0],
+    hull3: hexToRgb(ctx.style.hullBase),
+    hullDark3: hexToRgb(ctx.style.hullDark),
+    emissive3: glowRgb,
+    glow: GLOW_STRENGTH[part.category] ?? 0.4,
+    // wings and their cousins are authored spanning outboard along +X, but the
+    // game assets run nose-to-tail, so they get a quarter turn to line up
+    yawQuarters: WING_LIKE.has(part.category) ? 1 : 0,
+  });
+  return real ? { faces: real, sockets: spec.sockets } : spec;
+}
+
+function moduleSpecPolygons(part: Part, ctx: SpecCtx, opts: SpecOpts = {}): ModuleSpec {
   const { style, podWidth, halfHeight } = ctx;
   const t = ctx.density === "low" ? 12 : 18;
   const hull: [number, number, number] = hexToRgb(style.hullBase);

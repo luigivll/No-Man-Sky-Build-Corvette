@@ -18,6 +18,8 @@ export type PartStats = Record<StatId, number>;
 export type Rarity = "common" | "uncommon" | "rare" | "exotic";
 
 export interface Part {
+  /** real game asset backing this module, e.g. "B_COK_A" (see public/models) */
+  assetId?: string;
   id: string;
   name: string;
   category: PartCategoryId;
