@@ -257,7 +257,12 @@ export function serenity(bp: Blueprint): NamedRecipe {
     put("B_ALK_B", [-0.62, 0, -2.4], { mirror: true, scale: 0.85, role: "cargo flank port" }),
     put("B_ALK_B", [0.62, 0, -3.6], { scale: 0.85, role: "cargo flank stbd" }),
     put("B_ALK_B", [-0.62, 0, -3.6], { mirror: true, scale: 0.85, role: "cargo flank port" }),
-    ...spanPair("B_WNG_R", [0.4, -0.25, -3.2], [0.4, -0.9, -3.2], { scale: 0.3, role: "cargo ramp" }),
+  );
+
+  // The aft ramp: its own module on the centreline, not a four-unit wing stood on
+  // edge — a wing there reads as a fin the ship does not have.
+  parts.push(
+    put("B_CON2_2", [0, -0.02, -4.75], { scale: 0.9, role: "cargo ramp" }),
   );
 
   // two outboard VTL pods on stub wings, plus the tail engine

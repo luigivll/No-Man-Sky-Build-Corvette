@@ -423,22 +423,24 @@ export function pelican(bp: Blueprint): NamedRecipe {
   );
 
   // Wings: root high on the hull flank, tip thrown out AND well down.
-  const rootA: V3 = [0.42, 0.22, -2.15];
-  const tipB: V3 = [1.85, -0.85, -2.15];
-  const wings = spanPair("B_WNG_A", rootA, tipB, { scale: 0.62, role: "droop wing" });
+  const rootA: V3 = [0.42, 0.26, -2.15];
+  const tipB: V3 = [2.15, -1.05, -2.15];
+  const wings = spanPair("B_WNG_A", rootA, tipB, { scale: 0.5, role: "droop wing" });
   parts.push(...wings);
 
-  // Engine pods hang under the tips, on the wing's own axis so they follow the droop.
+  // Engine pods on the tips, riding the wing's own axis so they follow the droop.
+  // B_TRU_D is a flat nacelle; B_TRU_C is a finned drum whose 0.75 cross-section
+  // swallowed the whole wing and read as a turbine.
   wings.forEach((wing, i) => {
     const side = i === 0 ? 1 : -1;
-    const tip = atTip(wing, [side > 0 ? 1 : -1, -1, 0], 0.5);
+    const tip = atTip(wing, [side > 0 ? 1 : -1, -1, 0], 0.35);
     if (tip) {
       parts.push({
-        assetId: "B_TRU_C",
-        pos: [tip[0], tip[1] - 0.28, tip[2] - 0.1],
+        assetId: "B_TRU_D",
+        pos: [tip[0], tip[1] - 0.06, tip[2] - 0.15],
         mirror: side < 0,
         roll: wing.roll,
-        scale: 0.66,
+        scale: 0.52,
         role: "tip engine",
       });
     }
