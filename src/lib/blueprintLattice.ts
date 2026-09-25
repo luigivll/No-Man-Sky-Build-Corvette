@@ -31,6 +31,7 @@ import {
 } from "./lattice";
 import type { NamedRecipe } from "./fleet";
 import type { Blueprint, Part } from "./types";
+import { iconicRecipe } from "./iconics";
 
 interface Box {
   min: [number, number, number];
@@ -310,6 +311,11 @@ function spread(n: number, lo: number, hi: number): number[] {
 }
 
 export function blueprintToRecipe(bp: Blueprint): NamedRecipe {
+  // Ships whose silhouette is the whole point are drawn by hand; the compiler is
+  // the fallback, not the default.
+  const handmade = iconicRecipe(bp);
+  if (handmade) return handmade;
+
   const bag = collect(bp);
   const style = styleById(bp.style ?? "corvette", hash(bp.id) % 97);
   const seed = hash(bp.id);

@@ -46,6 +46,23 @@ export interface LatticePlacement {
    * fuselage.  Everything (extent, bbox, plume position) follows.
    */
   scale?: number;
+  /**
+   * Extra stretch along the part's own outboard axis, applied after `scale`.
+   *
+   * The corvette pack has exactly one long thin foil (B_WNG_R: 4.53 of chord
+   * against 1.30 of span), and a starfighter needs the opposite ratio - an
+   * X-Wing reaches further out than it does fore-and-aft.  Stretching the span
+   * gets the silhouette without touching the chord or the thickness.
+   */
+  stretchX?: number;
+  /**
+   * Continuous rotation about the ship's longitudinal axis, in radians, taken
+   * about the part's own snap point.  This is what turns a wing from a plank
+   * sticking out sideways into an S-foil canted up into the X: a positive roll
+   * lifts the outboard end, and because mirroring flips the x axis the same
+   * value lifts BOTH halves of a pair, which is exactly the upper two foils.
+   */
+  roll?: number;
   /** label used by the manual / parts list */
   role?: string;
   /**
@@ -90,20 +107,29 @@ function lookup(assetId: string): PackedPart | null {
 }
 
 /** world-space bbox of a part once its transform is applied */
-export function placedBox(assetId: string, pos: V3, yaw = 0, mirror = false, scale = 1): Box | null {
+export function placedBox(
+  assetId: string,
+  pos: V3,
+  yaw = 0,
+  mirror = false,
+  scale = 1,
+  roll = 0,
+  stretchX = 1,
+): Box | null {
   const p = lookup(assetId);
   if (!p) return null;
   const raw = partBox(p);
   const b: Box = {
-    min: [raw.min[0] * scale, raw.min[1] * scale, raw.min[2] * scale],
-    max: [raw.max[0] * scale, raw.max[1] * scale, raw.max[2] * scale],
+    min: [raw.min[0] * scale * stretchX, raw.min[1] * scale, raw.min[2] * scale],
+    max: [raw.max[0] * scale * stretchX, raw.max[1] * scale, raw.max[2] * scale],
   };
   const corners: V3[] = [];
   for (const cx of [b.min[0], b.max[0]]) {
     for (const cy of [b.min[1], b.max[1]]) {
       for (const cz of [b.min[2], b.max[2]]) {
-        const [x, z] = rotateY(cx, cz, yaw);
-        corners.push([pos[0] + (mirror ? -x : x), pos[1] + cy, pos[2] + z]);
+        const [rx, ry] = rollXY(cx, cy, roll);
+        const [x, z] = rotateY(rx, cz, yaw);
+        corners.push([pos[0] + (mirror ? -x : x), pos[1] + ry, pos[2] + z]);
       }
     }
   }
@@ -111,6 +137,14 @@ export function placedBox(assetId: string, pos: V3, yaw = 0, mirror = false, sca
     min: [Math.min(...corners.map((c) => c[0])), Math.min(...corners.map((c) => c[1])), Math.min(...corners.map((c) => c[2]))],
     max: [Math.max(...corners.map((c) => c[0])), Math.max(...corners.map((c) => c[1])), Math.max(...corners.map((c) => c[2]))],
   };
+}
+
+/** rotation in the ship's cross-section plane; positive lifts the outboard end */
+export function rollXY(x: number, y: number, roll: number): [number, number] {
+  if (!roll) return [x, y];
+  const c = Math.cos(roll);
+  const s = Math.sin(roll);
+  return [x * c - y * s, x * s + y * c];
 }
 
 function rotateY(x: number, z: number, quarters: number): [number, number] {
@@ -181,26 +215,40 @@ export function flank(
     yOffset?: number;
     yaw?: number;
     scale?: number;
+    roll?: number;
+    stretchX?: number;
   } = {},
 ): LatticePlacement {
-  const { side = 1, overlap = 0, zOffset = 0, yOffset = 0, yaw = 0, scale = 1 } = opts;
+  const {
+    side = 1,
+    overlap = 0,
+    zOffset = 0,
+    yOffset = 0,
+    yaw = 0,
+    scale = 1,
+    roll = 0,
+    stretchX = 1,
+  } = opts;
   const hostBox = placedBox(host.assetId, host.pos, host.yaw ?? 0, host.mirror, host.scale ?? 1);
-  const child = lookup(assetId);
-  const childMinX = child ? partBox(child).min[0] : 0;
+  // The inboard extent has to be measured AFTER the roll: a foil canted 30
+  // degrees no longer reaches as far sideways as its flat bbox claims.
+  const childLocal = placedBox(assetId, [0, 0, 0], 0, false, scale, roll, stretchX);
+  const childMinX = childLocal ? childLocal.min[0] : 0;
   const edge = hostBox ? (side > 0 ? hostBox.max[0] : hostBox.min[0]) : 0.5 * side;
 
   // The child's INBOARD face is the one that has to land on the hull edge, and
   // which local face that is depends on whether the asset reaches outboard from
   // its origin (wings: local x runs 0..1) or straddles it (boosters: -0.49..0.52).
   // Mirroring maps local +x onto world -x, so both cases reduce to childMinX.
-  const scaledMinX = childMinX * scale;
-  const x = (side > 0 ? edge - scaledMinX : edge + scaledMinX) + overlap * side;
+  const x = (side > 0 ? edge - childMinX : edge + childMinX) + overlap * side;
   return {
     assetId,
     pos: [x, host.pos[1] + yOffset, host.pos[2] + zOffset],
     yaw,
     mirror: side < 0,
     scale,
+    roll,
+    stretchX,
     role: side < 0 ? "port" : "starboard",
   };
 }
@@ -296,6 +344,8 @@ export function assembleCorvette(recipe: LatticeRecipe, opts: AssembleOptions = 
     const yaw = place.yaw ?? 0;
     const mirror = place.mirror ?? false;
     const scale = place.scale ?? 1;
+    const roll = place.roll ?? 0;
+    const stretchX = place.stretchX ?? 1;
     const triCount = dec.indices.length / 3;
     const order = largestTris(dec.positions, dec.indices, triCount, maxTris);
 
@@ -324,14 +374,20 @@ export function assembleCorvette(recipe: LatticeRecipe, opts: AssembleOptions = 
       nz /= nl;
 
       for (const vi of [a, b, c]) {
-        const [rx, rz] = rotateY(dec.positions[vi] * scale, dec.positions[vi + 2] * scale, yaw);
+        const [lx, ly] = rollXY(
+          dec.positions[vi] * scale * stretchX,
+          dec.positions[vi + 1] * scale,
+          roll,
+        );
+        const [rx, rz] = rotateY(lx, dec.positions[vi + 2] * scale, yaw);
         const wx = mirror ? -rx : rx;
-        pts.push([
-          place.pos[0] + wx,
-          place.pos[1] + dec.positions[vi + 1] * scale,
-          place.pos[2] + rz,
-        ]);
+        pts.push([place.pos[0] + wx, place.pos[1] + ly, place.pos[2] + rz]);
       }
+      // the roll only moves the part, not the lighting rig it is lit by
+      const [rnx, rny] = rollXY(nx, ny, roll);
+      nx = rnx;
+      ny = rny;
+
       // mirroring flips winding, and so does a normal pointing the wrong way
       if (mirror) pts.reverse();
       if (mirror) {
@@ -374,7 +430,7 @@ export function assembleCorvette(recipe: LatticeRecipe, opts: AssembleOptions = 
     // the nozzle without anyone having to hand-place it.
     const wantsPlume = place.plume !== false && (place.plume || place.assetId.startsWith("B_TRU"));
     if (wantsPlume) {
-      const own = placedBox(place.assetId, place.pos, yaw, mirror, scale);
+      const own = placedBox(place.assetId, place.pos, yaw, mirror, scale, roll, stretchX);
       if (own) {
         const cfg = typeof place.plume === "object" ? place.plume : {};
         const spanX = own.max[0] - own.min[0];
