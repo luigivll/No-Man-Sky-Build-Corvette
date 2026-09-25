@@ -5,7 +5,7 @@ import Link from "next/link";
 import ShipPreview3D from "@/components/ShipPreview3D";
 import { Chip, HudLabel, Panel, PanelHeader } from "@/components/ui";
 import { Icon } from "@/components/Icon";
-import { assembleCorvette, placedBox } from "@/lib/lattice";
+import { assembleCorvette, heroBudget, placedBox } from "@/lib/lattice";
 import { blueprintToRecipe } from "@/lib/blueprintLattice";
 import { LATTICE_RECIPES, latticeBuild } from "@/lib/fleet";
 import { ensurePack } from "@/lib/realMeshes";
@@ -40,7 +40,10 @@ export default function LatticeView({ slug, height = 620 }: { slug: string; heig
   );
 
   const mesh: ShipMesh | null = useMemo(
-    () => (ready && recipe ? assembleCorvette(recipe, { maxTrisPerPart: 0 }) : null),
+    () =>
+      ready && recipe
+        ? assembleCorvette(recipe, { maxTrisPerPart: heroBudget(recipe.parts.length) })
+        : null,
     [ready, recipe],
   );
 
@@ -48,7 +51,9 @@ export default function LatticeView({ slug, height = 620 }: { slug: string; heig
     () =>
       (recipe?.parts ?? []).map((p) => ({
         p,
-        box: placedBox(p.assetId, p.pos, p.yaw, p.mirror, p.scale ?? 1),
+        // the box has to account for roll and span stretch, or a canted foil
+        // reports a column of numbers that does not match what is on screen
+        box: placedBox(p.assetId, p.pos, p.yaw, p.mirror, p.scale ?? 1, p.roll ?? 0, p.stretchX ?? 1),
       })),
     [recipe],
   );

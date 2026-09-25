@@ -309,6 +309,19 @@ function mixRgb(a: [number, number, number], b: [number, number, number], t: num
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 }
 
+/**
+ * Triangle budget for an interactive view.
+ *
+ * The whole pack is 85k triangles for the 25-module probe and over 100k for a
+ * 30-module dreadnought, and every triangle becomes an SVG polygon in the DOM.
+ * Full detail is right for an offline render and wrong for a live view, so the
+ * viewer shares a budget: a ship small enough to keep everything does, and a big
+ * one keeps its silhouette and drops the sub-millimetre detail nobody can see.
+ */
+export function heroBudget(moduleCount: number, total = 26000): number {
+  return Math.max(180, Math.round(total / Math.max(1, moduleCount)));
+}
+
 export interface AssembleOptions {
   maxTrisPerPart?: number;
   /** keep the real emissive hardware glowing */

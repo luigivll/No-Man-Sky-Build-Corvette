@@ -166,12 +166,12 @@ export function enterprise(bp: Blueprint): NamedRecipe {
     [-1.8, 0, 0.6],
     [0.55, 1.0, 0.8],
     [-0.55, 1.0, 0.8],
-    [1.45, 0.85, 0.6],
-    [-1.45, 0.85, 0.6],
+    [1.4, 0.7, 0.6],
+    [-1.4, 0.7, 0.6],
     [0.55, -1.1, 0.8],
     [-0.55, -1.1, 0.8],
-    [1.45, -0.95, 0.6],
-    [-1.45, -0.95, 0.6],
+    [1.4, -0.7, 0.6],
+    [-1.4, -0.7, 0.6],
     [0, -1.9, 0.6],
   ];
   disc.forEach(([x, z, sc], i) => {
@@ -238,18 +238,26 @@ export function serenity(bp: Blueprint): NamedRecipe {
     }).map((p, i) => ({ ...p, role: i === 0 ? "snout" : "hull" })),
   );
 
-  // raised bridge, with the sensor mule standing on the bridge's own deck
-  const bridge: LatticePlacement[] = [];
-  bridge.push(standing("B_HAB1_A", parts, 0, 0.4, { role: "bridge deck" }) as LatticePlacement);
-  bridge.push(
-    standing("B_COK_B", [...parts, ...bridge], 0, 0.4, { role: "flight deck" }) as LatticePlacement,
-  );
-  parts.push(...compact(bridge));
+  // The Firefly's neck: a low flight deck standing on the hull amidships, with the
+  // sensor mule standing on THAT — two blobs at different stations and heights
+  // just read as damage.
+  // The mule sits directly on the nose deck, with the raised flight deck behind it —
+  // stacking the mule on the neck instead left it hanging a unit above the bow.
   parts.push(
     ...compact([
-      standing("B_SHL_C", parts, 0, 1.9, { role: "sensor mule" }),
-      standing("B_SHL_C", parts, 0, 1.1, { scale: 0.7, role: "sensor mule base" }),
+      standing("B_SHL_C", parts, 0, 0.35, { scale: 0.75, role: "sensor mule" }),
+      standing("B_COK_D", parts, 0, -1.4, { role: "flight deck" }),
     ]),
+  );
+
+  // the mid-hull gets a second cell of width, so the cargo body has the volume the
+  // ship is mostly made of instead of reading as a pipe
+  parts.push(
+    put("B_ALK_B", [0.62, 0, -2.4], { scale: 0.85, role: "cargo flank stbd" }),
+    put("B_ALK_B", [-0.62, 0, -2.4], { mirror: true, scale: 0.85, role: "cargo flank port" }),
+    put("B_ALK_B", [0.62, 0, -3.6], { scale: 0.85, role: "cargo flank stbd" }),
+    put("B_ALK_B", [-0.62, 0, -3.6], { mirror: true, scale: 0.85, role: "cargo flank port" }),
+    ...spanPair("B_WNG_R", [0.4, -0.25, -3.2], [0.4, -0.9, -3.2], { scale: 0.3, role: "cargo ramp" }),
   );
 
   // two outboard VTL pods on stub wings, plus the tail engine
@@ -354,16 +362,15 @@ export function nostromo(bp: Blueprint): NamedRecipe {
     ]),
   );
 
-  // towing arms: two prongs run forward off the bow, which is the Nostromo's face
+  // Towing arms: two long slim prongs run forward off the bow. That silhouette —
+  // a blunt industrial hull with two needles reaching ahead of it — is the
+  // Nostromo's face, and boxy arms do not read as it.
   for (const side of [1, -1] as const) {
+    const px = side * 0.95;
     parts.push(
-      ...chainZ(["B_CON_5", "B_CON_5", "B_STR_A_N"]).map((p) => ({
-        ...p,
-        pos: [side * 1.1, 0, p.pos[2] + 1.6] as V3,
-        mirror: side < 0,
-        role: "towing arm",
-      })),
-      ...spanPair("B_STR_A_N", [0.5, 0, 1.2], [1.1, 0, 1.2], { scale: 0.6, role: "arm brace" }),
+      span("B_WNG_R", [px, -0.05, 0.6], [px, -0.05, 4.5], { scale: 0.16, role: "towing arm" }),
+      span("B_WNG_R", [px, 0.35, 0.6], [px, 0.35, 3.9], { scale: 0.12, role: "towing arm upper" }),
+      put("B_STR_A_N", [px, 0.16, 4.2], { scale: 0.55, mirror: side < 0, role: "arm clamp" }),
     );
   }
 

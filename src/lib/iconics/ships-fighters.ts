@@ -403,43 +403,50 @@ export function sentinelInterceptor(bp: Blueprint): NamedRecipe {
 export function pelican(bp: Blueprint): NamedRecipe {
   const parts: LatticePlacement[] = [];
 
+  // A six-cell hull with the flight deck right up front and the tail boom off the
+  // back; the boom carries the fin, which is what makes the D77 recognisable from
+  // the side.
   parts.push(
-    ...chainZ(["B_COK_D", "B_CON_5", "B_HAB_C", "B_CON2_0", "B_STR_A_N"]),
-    put("B_SHL_C", [0, 0.42, -0.9], { role: "intake" }),
-    put("B_SHL_C", [0, 0.42, -2.0], { role: "intake" }),
-    // tail boom out the back
-    ...chainZ(["B_CON_5", "B_STR_A_N"]).map((p) => ({
-      ...p,
-      pos: [0, 0.1, p.pos[2] - 5.2] as V3,
-      scale: 0.7,
-      role: "tail boom",
-    })),
+    ...chainZ(["B_COK_D", "B_CON_5", "B_HAB_C", "B_HAB_C", "B_CON2_0", "B_STR_A_N"]),
+    put("B_SHL_C", [0, 0.44, -0.4], { scale: 0.7, role: "avionics" }),
+    put("B_SHL_C", [0, 0.44, -1.6], { scale: 0.7, role: "avionics" }),
+    put("B_CON_5", [0, 0.2, -6.9], { scale: 0.8, role: "tail boom" }),
+    put("B_STR_A_N", [0, 0.2, -7.7], { scale: 0.7, role: "tail boom" }),
+    put("B_TUR_C", [0, 0.35, -4.5], { scale: 0.6, role: "chin gun" }),
   );
 
-  // drooping wings with the engine pods at the tips, exactly the Pelican's read
-  const tipA: V3 = [0.55, -0.05, -1.7];
-  const tipB: V3 = [2.05, -1.35, -1.7];
-  parts.push(...spanPair("B_WNG_D", tipA, tipB, { scale: 0.85, role: "droop wing" }));
+  // Wings out of the hull's upper sides, drooping to engine pods slung UNDER the
+  // tips — and the skids go under the hull, not under the wing, which is what
+  // stops them reading as debris when the wing gets wide.
+  const rootA: V3 = [0.5, 0.12, -2.2];
+  const tipB: V3 = [1.95, -0.55, -2.2];
+  parts.push(...spanPair("B_WNG_D", rootA, tipB, { scale: 0.55, role: "droop wing" }));
   for (const side of [1, -1] as const) {
     parts.push({
       assetId: "B_TRU_C",
-      pos: [side * tipB[0], tipB[1], tipB[2] + 0.1],
+      pos: [side * 1.9, -0.6, -2.7],
       mirror: side < 0,
-      roll: deg(-20),
+      roll: deg(-16),
+      scale: 0.62,
       role: "tip engine",
     });
   }
   parts.push(
-    put("B_LND_B", [0.75, -0.5, 0.4], { role: "landing gear" }),
-    put("B_LND_B", [-0.75, -0.5, 0.4], { mirror: true, role: "landing gear" }),
+    ...compact([fin("B_WNG_K", parts, 0, -7.0, { scale: 0.5, role: "tail fin" })]),
+    ...compact([
+      hanging("B_LND_B", parts, 0.5, 0.2, { drop: 0.02 }),
+      hanging("B_LND_B", parts, -0.5, 0.2, { drop: 0.02 }),
+      hanging("B_LND_B", parts, 0.5, -3.6, { drop: 0.02 }),
+      hanging("B_LND_B", parts, -0.5, -3.6, { drop: 0.02 }),
+    ]),
   );
 
   return recipeFor(bp, {
-    parts,
-    view: { yaw: 0.25, pitch: -0.28, zoom: 1 },
+    parts: compact(parts),
+    view: { yaw: 0.85, pitch: -0.42, zoom: 1 },
     paint: { hull: "#7c8a6e", hullDark: "#2f3628", emissive: "#8fd0ff", glow: 0.5 },
     blurb:
-      "Boxy fuselage, two drooping wings with the engine pods hanging at the tips and a tail boom out the back — D77, not a shuttle.",
+      "Six-cell hull with the flight deck forward, wings mounted high that droop to the engine pods at the tips, and a tail boom carrying the fin.",
   });
 }
 

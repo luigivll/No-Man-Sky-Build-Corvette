@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import ShipPreview3D from "@/components/ShipPreview3D";
 import { Chip, HudLabel, Panel, PanelHeader } from "@/components/ui";
 import { Icon } from "@/components/Icon";
-import { assembleCorvette, placedBox } from "@/lib/lattice";
+import { assembleCorvette, heroBudget, placedBox } from "@/lib/lattice";
 import { assetLabel } from "@/lib/blueprintLattice";
 import { latticeBuild, type NamedRecipe } from "@/lib/fleet";
 import { ensurePack } from "@/lib/realMeshes";
@@ -83,7 +83,7 @@ export default function RealAssemblyManual({
   // full detail and the later ones get cheaper as the hull fills up. A fixed
   // per-part cap would make the first three steps as coarse as a 60-module
   // dreadnought, and no cap at all would hand the browser 85k polygons.
-  const budget = Math.max(420, Math.min(2400, Math.round(14000 / Math.max(1, placed.length))));
+  const budget = heroBudget(placed.length, 16000);
 
   const mesh: ShipMesh | null = useMemo(() => {
     if (!ready || !placed.length) return null;
