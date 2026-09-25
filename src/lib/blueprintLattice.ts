@@ -97,6 +97,60 @@ function hash(text: string): number {
   return h >>> 0;
 }
 
+/**
+ * Reverse of the catalogue: which catalogue part is this game asset?
+ *
+ * The compiler works in asset ids (B_TRU_A) but a human reads part names
+ * ("Titan Heavy Booster"), so the manual needs the way back.
+ */
+const ASSET_TO_PART = new Map<string, Part>();
+for (const part of catalogueParts) {
+  if (part.assetId && !ASSET_TO_PART.has(part.assetId)) ASSET_TO_PART.set(part.assetId, part);
+}
+
+/** asset code -> what the family actually is, for the 440 structural pieces */
+const ASSET_FAMILY: Record<string, string> = {
+  STR: "Structural frame",
+  STAIRS0: "Boarding stair",
+  WNG: "Wing panel",
+  CON: "Connector",
+  CON2: "Landing bay frame",
+  ALK: "Walkway",
+  DECO: "Hull trim",
+  WALL: "Wall panel",
+  TRU: "Thruster",
+  HAB: "Habitation module",
+  HAB1: "Habitation module",
+  COK: "Cockpit",
+  TUR: "Turret ring",
+  SHL: "Shield generator",
+  GEN: "Reactor core",
+  LND: "Landing gear",
+};
+
+/** the _N/_E/_S/_W mount suffix: which face of the cell the part bolts to */
+const ASSET_FACE: Record<string, string> = {
+  N: "north face",
+  E: "east face",
+  S: "south face",
+  W: "west face",
+};
+
+export function assetLabel(assetId: string): string {
+  const catalogue = ASSET_TO_PART.get(assetId);
+  if (catalogue) return catalogue.name;
+  const [, family, ...rest] = assetId.split("_");
+  const word = ASSET_FAMILY[family];
+  if (!word) return assetId.replace(/_/g, " ");
+  const variant = rest.length > 1 ? rest[0] : null;
+  const face = rest.length ? ASSET_FACE[rest[rest.length - 1]] : null;
+  return [word, variant ? `type ${variant}` : null, face].filter(Boolean).join(" · ");
+}
+
+export function partForAsset(assetId: string): Part | undefined {
+  return ASSET_TO_PART.get(assetId);
+}
+
 function assetOf(partId: string): string | null {
   const part = partById[partId] as Part | undefined;
   return part?.assetId ?? null;
@@ -368,8 +422,6 @@ export function blueprintToRecipe(bp: Blueprint): NamedRecipe {
   [...bag.shields, ...bag.reactors].forEach((asset, i) => {
     parts.push(stack(asset, hostAt(hosts, kitTs[i]).place, { below: false }));
   });
-
-  void catalogueParts;
 
   return {
     id: bp.slug,

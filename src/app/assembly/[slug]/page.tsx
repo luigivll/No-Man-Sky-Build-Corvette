@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import AssemblyManualView from "@/components/AssemblyManualView";
+import RealAssemblyManual from "@/components/RealAssemblyManual";
 import { Icon } from "@/components/Icon";
 import { buildFromBlueprint, countParts, costBreakdown, formatUnits } from "@/lib/build";
 import { blueprints, blueprintBySlug } from "@/lib/data";
+import { blueprintToRecipe } from "@/lib/blueprintLattice";
 
 export function generateStaticParams() {
   return blueprints.map((blueprint) => ({ slug: blueprint.slug }));
@@ -32,7 +34,13 @@ export default async function AssemblySlugPage({
   const cost = costBreakdown(build);
 
   return (
-    <AssemblyManualView
+    <div className="space-y-5">
+      <RealAssemblyManual
+        recipe={blueprintToRecipe(blueprint)}
+        accent={blueprint.accent}
+        height={540}
+      />
+      <AssemblyManualView
       build={build}
       styleId={blueprint.style}
       title={`${blueprint.name} - assembly manual`}
@@ -52,6 +60,7 @@ export default async function AssemblySlugPage({
           </Link>
         </>
       }
-    />
+      />
+    </div>
   );
 }
