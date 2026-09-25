@@ -157,8 +157,8 @@ export function delta7(bp: Blueprint): NamedRecipe {
   // most of a ship-length ahead of the cockpit. At 0.2 scale it is a needle
   // rather than a plank.
   parts.push(
-    span("B_WNG_R", [0, 0.14, 1.0], [0, 0.14, 3.4], { scale: 0.2, role: "needle nose" }),
-    span("B_WNG_R", [0, -0.08, 1.0], [0, -0.08, 2.5], { scale: 0.16, role: "chin fairing" }),
+    span("B_WNG_R", [0, 0.14, 0.8], [0, 0.14, 3.4], { scale: 0.2, role: "needle nose" }),
+    span("B_WNG_R", [0, -0.08, 0.8], [0, -0.08, 2.5], { scale: 0.16, role: "chin fairing" }),
   );
 
   // two short blades at the stern, barely canted, with the engines on the roots
@@ -168,9 +168,12 @@ export function delta7(bp: Blueprint): NamedRecipe {
   parts.push(
     put("B_TRU_A", [0.72, 0.05, -2.9], { role: "sublight thruster" }),
     put("B_TRU_A", [-0.72, 0.05, -2.9], { mirror: true, role: "sublight thruster" }),
-    put("B_TUR_A", [0.3, -0.28, 1.1], { role: "nose cannon" }),
-    put("B_TUR_A", [-0.3, -0.28, 1.1], { mirror: true, role: "nose cannon" }),
-    put("B_SHL_B", [0, 0.42, 0.1], { role: "ion barrier" }),
+    put("B_TUR_A", [0.3, -0.2, 0.9], { role: "nose cannon" }),
+    put("B_TUR_A", [-0.3, -0.2, 0.9], { mirror: true, role: "nose cannon" }),
+    // a small astromech dome, not a beach ball: the ion barrier is a wide flat
+    // shield and reads as a bubble on a hull this slim
+    put("B_SHL_C", [0, 0.4, -0.2], { role: "astromech socket" }),
+    put("B_SHL_A", [0, 0.28, -1.5], { scale: 0.7, role: "ion barrier" }),
   );
 
   return recipeFor(bp, {
@@ -192,8 +195,8 @@ export function eta2(bp: Blueprint): NamedRecipe {
   parts.push(...chainZ(["B_COK_B", "B_CON_5", "B_HAB1_A", "B_STR_A_N"]));
   // the Actis is mostly nose: a long blade with the canopy amidships
   parts.push(
-    span("B_WNG_R", [0, 0.06, 1.1], [0, 0.06, 4.0], { scale: 0.22, role: "forward blade" }),
-    span("B_WNG_R", [0, -0.18, 1.1], [0, -0.18, 2.6], { scale: 0.18, role: "ventral blade" }),
+    span("B_WNG_R", [0, 0.06, 0.8], [0, 0.06, 3.9], { scale: 0.2, role: "forward blade" }),
+    span("B_WNG_R", [0, -0.18, 0.8], [0, -0.18, 2.6], { scale: 0.16, role: "ventral blade" }),
     put("B_SHL_C", [0, 0.44, -0.15], { role: "astromech socket" }),
   );
 
@@ -345,42 +348,51 @@ export function sentinelInterceptor(bp: Blueprint): NamedRecipe {
 
   parts.push(
     ...chainZ(["B_COK_B", "B_CON_5", "B_HAB1_A", "B_STR_A_N", "B_TRU_G"]),
-    // the sentinel beak: a blade run out ahead of the cockpit
-    span("B_WNG_R", [0, -0.12, 1.2], [0, -0.12, 3.2], { scale: 0.45, role: "beak" }),
-    // and its crest, standing on the spine
-    ...compact([fin("B_WNG_K", parts, 0, -1.2, { scale: 0.5, role: "crest" })]),
-    put("B_SHL_C", [0, 0.4, 0.35], { role: "eye" }),
+    // the sentinel beak: a slim blade run out ahead of the cockpit
+    span("B_WNG_R", [0, -0.12, 0.85], [0, -0.12, 2.9], { scale: 0.16, role: "beak" }),
+    put("B_SHL_C", [0, 0.42, 0.4], { role: "eye" }),
   );
 
-  // outrigger pods, catamaran style, with blades
+  // Two slim outriggers, not boxes: one connector cell each, braced to the hull,
+  // carrying a long scythe blade that curves forward and up past the nose.
   for (const side of [1, -1] as const) {
-    const px = side * 1.5;
-    const podParts = chainZ(["B_HAB1_A", "B_CON_5", "B_STR_A_N"]).map((p) => ({
-      ...p,
-      pos: [px, p.pos[1], p.pos[2] - 1.1] as V3,
-      mirror: side < 0,
-      role: "outrigger",
-    }));
-    parts.push(...podParts);
+    const px = side * 1.55;
     parts.push(
-      ...spanPair("B_STR_A_N", [0.5, 0, -0.5], [1.5, 0, -0.5], { scale: 0.6, role: "outrigger strut" }),
-      ...spanPair("B_STR_A_N", [0.5, 0, -2.6], [1.5, 0, -2.6], { scale: 0.6, role: "outrigger strut" }),
-    );
-    parts.push(
-      span("B_WNG_K", [side * 1.5, 0.15, -1.4], [side * 2.6, 1.1, -1.4], {
-        scale: 0.6,
-        mirror: side < 0,
-        role: "scythe blade",
+      put("B_CON_5", [px, 0.05, -1.0], { mirror: side < 0, role: "outrigger" }),
+      put("B_STR_A_N", [px, 0.05, -2.0], { mirror: side < 0, role: "outrigger cap" }),
+      put("B_TRU_A", [px, 0.05, -2.5], { mirror: side < 0, role: "outrigger thruster" }),
+      ...spanPair("B_STR_A_N", [0.45, 0.05, -0.55], [1.55, 0.05, -0.55], {
+        scale: 0.4,
+        role: "outrigger brace",
+      }),
+      ...spanPair("B_STR_A_N", [0.45, 0.05, -1.55], [1.55, 0.05, -1.55], {
+        scale: 0.4,
+        role: "outrigger brace",
       }),
     );
+    const scythe = span("B_WNG_R", [px, 0.2, -1.2], [px + side * 1.1, 1.5, 2.2], {
+      scale: 0.42,
+      mirror: side < 0,
+      role: "scythe blade",
+    });
+    parts.push(scythe);
+    const tip = atTip(scythe, [side > 0 ? 1 : -1, 1, 1], 0.35);
+    if (tip) {
+      parts.push(
+        put("B_TUR_A", [tip[0], tip[1], tip[2] + 0.3], { mirror: side < 0, role: "blade cannon" }),
+      );
+    }
   }
 
+  // crest blade standing on the spine, behind the cockpit
+  parts.push(...compact([fin("B_WNG_K", parts, 0, -1.3, { scale: 0.45, role: "crest" })]));
+
   return recipeFor(bp, {
-    parts,
-    view: { yaw: 0.4, pitch: -0.3, zoom: 1 },
-    paint: { hull: "#4c5560", hullDark: "#181f26", emissive: "#5ef2b0", glow: 0.8 },
+    parts: compact(parts),
+    view: { yaw: 0.5, pitch: -0.22, zoom: 1 },
+    paint: { hull: "#4c5560", hullDark: "#181f26", emissive: "#5ef2b0", glow: 0.85 },
     blurb:
-      "An in-game Sentinel scaled up: a long beak, a crest blade, two outrigger pods and scythe blades, all lit the way the real thing is.",
+      "An in-game Sentinel scaled up: a slim beak, a crest blade, two braced outriggers and the long forward-curving scythes it hunts with.",
   });
 }
 
@@ -440,7 +452,7 @@ export function blackbird(bp: Blueprint): NamedRecipe {
 
   parts.push(
     ...chainZ(["B_COK_B", "B_CON_5", "B_GEN_2", "B_HAB1_A", "B_STR_A_N"]),
-    span("B_WNG_R", [0, 0.06, 1.4], [0, 0.06, 3.2], { scale: 0.22, role: "nose cone" }),
+    span("B_WNG_R", [0, 0.06, 0.8], [0, 0.06, 3.1], { scale: 0.2, role: "nose cone" }),
     put("B_SHL_A", [0, 0.5, -0.4], { role: "dorsal sensor" }),
   );
 

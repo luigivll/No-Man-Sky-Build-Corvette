@@ -9,7 +9,7 @@
  */
 
 import { chainZ, type LatticePlacement } from "../lattice";
-import { deg, fin, hanging, pod, prong, put, row, span, spanPair, standing } from "./dsl";
+import { atTip, deg, fin, hanging, pod, prong, put, row, span, spanPair, standing } from "./dsl";
 import { compact, recipeFor } from "./recipe";
 import type { Blueprint } from "../types";
 import type { NamedRecipe } from "../fleet";
@@ -469,43 +469,66 @@ export function thunderbird2(bp: Blueprint): NamedRecipe {
 export function firespray(bp: Blueprint): NamedRecipe {
   const parts: LatticePlacement[] = [];
 
-  // a wide flat hull flown upright, so the "deck" is the ship's belly
+  // Flown upright, so the "deck" is the ship's belly: a flat four-cell hull with
+  // the cockpit and the sensor pod riding on top and the drives hung underneath.
   parts.push(
     put("B_HAB_A", [0.5, 0, -0.2], { role: "hull stbd" }),
     put("B_HAB_A", [-0.5, 0, -0.2], { mirror: true, role: "hull port" }),
-    put("B_CON2_0", [0, 0, 1.6], { role: "nose" }),
+    put("B_CON_5", [0.5, 0, 1.7], { role: "nose stbd" }),
+    put("B_CON_5", [-0.5, 0, 1.7], { mirror: true, role: "nose port" }),
     put("B_STR_A_N", [0, 0, 3.05], { role: "nose tip" }),
     put("B_COK_B", [0, 0.32, 0.9], { role: "cockpit" }),
-    put("B_SHL_C", [0, 0.36, -0.4], { role: "dorsal sensor" }),
+    put("B_SHL_B", [0, 0.34, -0.6], { role: "sensor pod" }),
+    put("B_TUR_E", [0, -0.3, 2.4], { role: "chin blaster" }),
   );
 
-  // the two rotating arms: flown upright, they rise beside the hull rather than
-  // sweeping out like wings, which is what the ship's silhouette actually is
-  const armA: V3 = [1.05, 0.15, -0.9];
-  const armB: V3 = [1.75, 1.5, -1.25];
-  const arms = spanPair("B_WNG_R", armA, armB, { scale: 0.62, role: "grapple arm" });
-  parts.push(...arms);
-  parts.push(
-    put("B_TUR_A", [1.72, 1.62, -0.9], { role: "blaster cannon" }),
-    put("B_TUR_A", [-1.72, 1.62, -0.9], { mirror: true, role: "blaster cannon" }),
-    put("B_TRU_A", [1.55, 0.35, -2.0], { role: "arm thruster" }),
-    put("B_TRU_A", [-1.55, 0.35, -2.0], { mirror: true, role: "arm thruster" }),
-  );
+  // The two rotating arms, each in two segments: the first rises beside the hull,
+  // the second leans back in toward the nose. That curve is the ship's silhouette,
+  // and one straight segment cannot make it.
+  for (const side of [1, -1] as const) {
+    const elbow = span("B_WNG_R", [side * 1.05, 0.1, -0.9], [side * 1.85, 1.25, -1.2], {
+      scale: 0.5,
+      mirror: side < 0,
+      role: "grapple arm lower",
+    });
+    parts.push(elbow);
+    const knee = atTip(elbow, [side > 0 ? 1 : -1, 1, 0], 0.4);
+    if (knee) {
+      const upper = span("B_WNG_R", knee, [side * 1.15, knee[1] + 1.5, knee[2] - 0.3], {
+        scale: 0.34,
+        mirror: side < 0,
+        role: "grapple arm upper",
+      });
+      parts.push(upper);
+      const gun = atTip(upper, [side > 0 ? -1 : 1, 1, 0], 0.3);
+      if (gun) {
+        parts.push({
+          assetId: "B_TUR_A",
+          pos: [gun[0], gun[1] - 0.12, gun[2] - 0.4],
+          mirror: side < 0,
+          roll: upper.roll,
+          role: "blaster cannon",
+        });
+      }
+    }
+    parts.push(put("B_TRU_A", [side * 1.5, 0.42, -1.9], { mirror: side < 0, role: "arm thruster" }));
+  }
 
-  // the two big drives at the back of the flat hull
+  // the two big drives hang under the flat hull
   parts.push(
-    ...row("B_TRU_C", [-0.55, 0.55], -0.05, -2.1, { role: "main drive" }),
-    ...compact([fin("B_WNG_K", parts, 0, -2.4, { scale: 0.5, role: "tail fin" })]),
-    hanging("B_LND_A", parts, 0.6, 0.4, {}) as LatticePlacement,
-    hanging("B_LND_A", parts, -0.6, 0.4, {}) as LatticePlacement,
+    ...row("B_TRU_C", [-0.55, 0.55], -0.34, -1.85, { role: "main drive" }),
+    ...compact([
+      hanging("B_LND_A", parts, 0.6, 0.5, { drop: -0.02 }),
+      hanging("B_LND_A", parts, -0.6, 0.5, { drop: -0.02 }),
+    ]),
   );
 
   return recipeFor(bp, {
     parts: compact(parts),
-    view: { yaw: 0.7, pitch: -0.5, zoom: 1 },
+    view: { yaw: 0.75, pitch: -0.34, zoom: 1 },
     paint: { hull: "#5f6470", hullDark: "#20242b", emissive: "#ff7a4a", glow: 0.55 },
     blurb:
-      "A flat two-cell hull with four cells of nose, the cockpit riding on top and two curved grapple arms that carry the blasters.",
+      "A flat four-cell hull flown upright, cockpit and sensor pod on the spine, two two-segment grapple arms rising at the flanks and the drives hung underneath.",
   });
 }
 

@@ -290,6 +290,28 @@ export function span(assetId: string, a: V3, b: V3, opts: SpanOpts = {}): Lattic
   const spanLen = Math.max(0.05, local.max[0] - local.min[0]);
   const dx = (b[0] - a[0]) * (opts.reach ?? 1);
   const dy = (b[1] - a[1]) * (opts.reach ?? 1);
+  const dz = (b[2] - a[2]) * (opts.reach ?? 1);
+
+  // A target that runs FORE-AND-AFT (a nose needle, a beak, a towing prong) cannot
+  // be reached by rolling in the cross-section plane — dx and dy are both ~0, which
+  // collapses the stretch to nothing and leaves a splinter. The part gets quarter
+  // turned instead so its own +x points along the ship's z.
+  if (Math.hypot(dx, dy) < 0.15 && Math.abs(dz) > 0.3) {
+    const yaw = dz > 0 ? 3 : 1;
+    const stretchZ = Math.max(0.1, Math.abs(dz) / spanLen);
+    // with the part turned, its chord lands across x, so it gets re-centred
+    const px = a[0] + ((local.min[2] + local.max[2]) / 2);
+    const py = a[1] - (local.min[1] + local.max[1]) / 2;
+    const inboard = local.min[0] * stretchZ;
+    const pz = dz > 0 ? a[2] - inboard : a[2] + inboard;
+    return put(assetId, [px, py, pz], {
+      ...opts,
+      yaw: opts.yaw ?? yaw,
+      roll: opts.roll ?? 0,
+      stretchX: stretchZ,
+    });
+  }
+
   const roll = opts.roll ?? Math.atan2(dy, dx);
   const stretchX = Math.max(0.1, Math.hypot(dx, dy) / spanLen);
   // A mirrored part maps local +x onto world -x, so the root lands on the other
