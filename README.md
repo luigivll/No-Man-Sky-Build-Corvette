@@ -19,6 +19,22 @@ converted from the corvette model library that ships with the open-source
 *No Man's Sky Base Builder* add-on, at their true relative scale (one snap cell
 is 6.0 × 3.0 × 6.0 source units). See them all at **`/models`**.
 
+### Lattice prototype
+
+`/lattice` assembles a real corvette from real parts on the game's own build
+grid. A part's FBX origin **is** its snap point and its bounding box says how far
+it reaches, so modules butt face-to-face with no fitted boxes:
+
+```
+next.z = current.z + current.zMin - next.zMax
+```
+
+`src/lib/lattice.ts` is the engine (`chainZ`, `flank`, `stack`), `src/lib/fleet.ts`
+holds the recipes. Stage 1 is a single hand-built spine; the iconics move over
+next.
+
+![Lattice prototype](docs/img/corvette-lattice-hero.png)
+
 Rebuild the pack at any time:
 
 ```bash
