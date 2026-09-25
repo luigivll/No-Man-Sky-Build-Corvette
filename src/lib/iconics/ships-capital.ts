@@ -479,15 +479,17 @@ export function firespray(bp: Blueprint): NamedRecipe {
     put("B_SHL_C", [0, 0.36, -0.4], { role: "dorsal sensor" }),
   );
 
-  // the two rotating arms, curved up and out, cannons on the tips
-  const armA: V3 = [1.0, 0.05, -1.0];
-  const armB: V3 = [2.5, 1.0, -1.6];
-  parts.push(...spanPair("B_WNG_R", armA, armB, { scale: 0.75, role: "grapple arm" }));
+  // the two rotating arms: flown upright, they rise beside the hull rather than
+  // sweeping out like wings, which is what the ship's silhouette actually is
+  const armA: V3 = [1.05, 0.15, -0.9];
+  const armB: V3 = [1.75, 1.5, -1.25];
+  const arms = spanPair("B_WNG_R", armA, armB, { scale: 0.62, role: "grapple arm" });
+  parts.push(...arms);
   parts.push(
-    put("B_TUR_A", [2.45, 1.1, 0.1], { role: "blaster cannon" }),
-    put("B_TUR_A", [-2.45, 1.1, 0.1], { mirror: true, role: "blaster cannon" }),
-    put("B_TRU_A", [1.6, 0.55, -2.1], { role: "arm thruster" }),
-    put("B_TRU_A", [-1.6, 0.55, -2.1], { mirror: true, role: "arm thruster" }),
+    put("B_TUR_A", [1.72, 1.62, -0.9], { role: "blaster cannon" }),
+    put("B_TUR_A", [-1.72, 1.62, -0.9], { mirror: true, role: "blaster cannon" }),
+    put("B_TRU_A", [1.55, 0.35, -2.0], { role: "arm thruster" }),
+    put("B_TRU_A", [-1.55, 0.35, -2.0], { mirror: true, role: "arm thruster" }),
   );
 
   // the two big drives at the back of the flat hull

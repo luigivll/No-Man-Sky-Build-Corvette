@@ -153,10 +153,12 @@ export function delta7(bp: Blueprint): NamedRecipe {
   const parts: LatticePlacement[] = [];
 
   parts.push(...chainZ(["B_COK_B", "B_CON_5", "B_GEN_2", "B_HAB1_B", "B_STR_A_N", "B_TRU_G"]));
-  // long slim needle nose ahead of the cockpit
+  // The Aethersprite is mostly needle: two slim blades, the upper one running
+  // most of a ship-length ahead of the cockpit. At 0.2 scale it is a needle
+  // rather than a plank.
   parts.push(
-    span("B_WNG_R", [0, 0.18, 1.35], [0, 0.18, 3.1], { scale: 0.42, role: "needle nose" }),
-    span("B_WNG_R", [0, -0.05, 1.35], [0, -0.05, 2.6], { scale: 0.3, role: "chin fairing" }),
+    span("B_WNG_R", [0, 0.14, 1.0], [0, 0.14, 3.4], { scale: 0.2, role: "needle nose" }),
+    span("B_WNG_R", [0, -0.08, 1.0], [0, -0.08, 2.5], { scale: 0.16, role: "chin fairing" }),
   );
 
   // two short blades at the stern, barely canted, with the engines on the roots
@@ -188,10 +190,10 @@ export function eta2(bp: Blueprint): NamedRecipe {
   const parts: LatticePlacement[] = [];
 
   parts.push(...chainZ(["B_COK_B", "B_CON_5", "B_HAB1_A", "B_STR_A_N"]));
-  // the Actis is mostly nose: a long forward blade with the canopy amidships
+  // the Actis is mostly nose: a long blade with the canopy amidships
   parts.push(
-    span("B_WNG_R", [0, 0.02, 1.4], [0, 0.02, 3.9], { scale: 0.5, role: "forward blade" }),
-    span("B_WNG_R", [0, -0.3, 1.4], [0, -0.3, 2.4], { scale: 0.34, role: "ventral blade" }),
+    span("B_WNG_R", [0, 0.06, 1.1], [0, 0.06, 4.0], { scale: 0.22, role: "forward blade" }),
+    span("B_WNG_R", [0, -0.18, 1.1], [0, -0.18, 2.6], { scale: 0.18, role: "ventral blade" }),
     put("B_SHL_C", [0, 0.44, -0.15], { role: "astromech socket" }),
   );
 
@@ -438,29 +440,28 @@ export function blackbird(bp: Blueprint): NamedRecipe {
 
   parts.push(
     ...chainZ(["B_COK_B", "B_CON_5", "B_GEN_2", "B_HAB1_A", "B_STR_A_N"]),
-    span("B_WNG_R", [0, 0.06, 1.4], [0, 0.06, 3.0], { scale: 0.45, role: "nose cone" }),
+    span("B_WNG_R", [0, 0.06, 1.4], [0, 0.06, 3.2], { scale: 0.22, role: "nose cone" }),
     put("B_SHL_A", [0, 0.5, -0.4], { role: "dorsal sensor" }),
   );
 
-  // two big nacelles at the wing roots
+  // Nacelles slung UNDER the wing roots, with the twin tails standing on them:
+  // at wing height they vanish inside the wing and the jet reads as a flying wing.
+  const nacelleX = 1.5;
   parts.push(
-    ...pod(["B_TRU_C", "B_TRU_D"], 1.45, 0.1, -1.4, { role: "engine nacelle" }),
-    ...pod(["B_TRU_C", "B_TRU_D"], -1.45, 0.1, -1.4, { role: "engine nacelle" }).map((p) => ({
+    ...pod(["B_TRU_C", "B_TRU_D"], nacelleX, -0.1, -1.5, { role: "engine nacelle" }),
+    ...pod(["B_TRU_C", "B_TRU_D"], -nacelleX, -0.1, -1.5, { role: "engine nacelle" }).map((p) => ({
       ...p,
       mirror: true,
     })),
-  );
-  parts.push(
-    ...spanPair("B_WNG_R", [0.5, 0.05, -2.2], [2.4, 0.45, -2.2], { scale: 0.8, role: "swept wing" }),
-    // twin vertical tails, standing on the hull at the stern
-    ...compact([
-      fin("B_WNG_K", parts, 0.45, -3.4, { scale: 0.55, role: "tail fin stbd" }),
-      fin("B_WNG_K", parts, -0.45, -3.4, { scale: 0.55, mirror: true, role: "tail fin port" }),
-      // canards
-      hanging("B_TUR_A", parts, 0.3, 1.0, { role: "nose cannon" }),
-      hanging("B_TUR_A", parts, -0.3, 1.0, { role: "nose cannon" }),
-    ]),
-    ...spanPair("B_WNG_K", [0.5, 0.1, 0.5], [1.3, 0.3, 0.5], { scale: 0.35, role: "canard" }),
+    ...spanPair("B_WNG_R", [0.45, 0.2, -2.1], [2.6, 0.55, -2.1], { scale: 0.7, role: "swept wing" }),
+    ...spanPair("B_STR_A_N", [0.45, -0.05, -1.6], [nacelleX, -0.05, -1.6], {
+      scale: 0.6,
+      role: "nacelle pylon",
+    }),
+    // twin vertical tails, standing on the nacelles
+    put("B_WNG_K", [nacelleX, 0.35, -2.3], { roll: deg(90), scale: 0.5, role: "tail fin stbd" }),
+    put("B_WNG_K", [-nacelleX, 0.35, -2.3], { mirror: true, roll: deg(90), scale: 0.5, role: "tail fin port" }),
+    ...spanPair("B_WNG_K", [0.5, 0.25, 0.5], [1.35, 0.5, 0.5], { scale: 0.32, role: "canard" }),
   );
 
   return recipeFor(bp, {
