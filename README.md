@@ -40,26 +40,44 @@ coarsely is a trap: it snaps the surface to a lattice and turns hull plating int
 spikes, so the grid is fine (400) and only the handful of giant parts hit the
 triangle budget. 8.2 MB packed for 1.18M source triangles.
 
-### Iconic ships, same engine
+### Iconic ships, hand-drawn
 
-Every one of the 21 iconic blueprints is compiled into a lattice recipe by
-`src/lib/blueprintLattice.ts`, so `/lattice/<slug>` renders the real ship instead
-of a stand-in. The spine chains cockpit → habitation (with walkways broken
-through it) → landing bays → an armoured cap; wings mount in mirrored pairs,
-either both on one station and split high/low (the X in an X-Wing) or spread
-along the spine for wider sets; heavy boosters go aft, light thrusters amidships.
+The generic compiler in `src/lib/blueprintLattice.ts` lays a blueprint's parts
+LIST out on the grid: a spine, then wings, engines, gear and guns bolted to it.
+That is right for a Star Destroyer — it IS a spine with things bolted to it — and
+wrong for anything whose shape *is* the ship. An X-Wing is four foils canted into
+a cross; no amount of tweaking a router produces that.
 
-Two rules keep the result honest:
+So `src/lib/iconics/` hand-draws all 21. `dsl.ts` is the vocabulary:
 
-* **Nothing floats.** `fitY()` clamps how far an outboard part may rise or drop
-  so at least 30 % of its height stays buried in the host module. An audit over
-  all 21 ships (`max |gap| = 0.06`) reports **zero orphaned modules**.
-* **Pairs mirror.** Nacelles are grouped by asset id first, so a pair of the same
-  booster always lands on one station with opposite sides; an odd unit rides the
-  centreline behind the tail.
+| helper | what it means |
+| --- | --- |
+| `put` / `pair` / `row` | absolute placement, mirrored pair, bank along one axis |
+| `span` / `spanPair` | "bolt this panel from A to B" — aims the part's own +x at B and solves `stretchX` so it reaches |
+| `pod` / `prong` | a chain of modules at a lateral offset / one running forward |
+| `standing` / `hanging` | sits or hangs a part on the surface beneath it |
+| `fin` | a vertical fin (rolled 90°, so `standing` cannot measure it) |
+| `extremeVertex` / `atTip` | where the part's metal actually ENDS, read from its vertices |
 
-`/assembly/<slug>` opens with the same recipe as a real-mesh walkthrough: step N
-draws the first N modules and repaints the one that just arrived.
+That last one is the difference between a cannon on a wingtip and a cannon
+hanging in space next to it: a bbox claims a corner the metal never reaches.
+
+```
+X-Wing        four S-foils hinged from ONE station, canted 33 degrees
+TIE Int.      ball pod on two pylons, four blades thrown out and up/down
+Falcon        hexagonal saucer, two mandibles, offset cockpit tube
+Star Destroy. long spine, three stepped plates flaring to the stern
+Rocinante     seven-cell hull, four Epstein drives, sponsons, eight PDCs
+Razor Crest   24 m long and 28 m wide: boxy hull, twin barrel engines
+```
+
+Hand-drawn ships are painted from their own reference art rather than from the
+catalogue's hull families, and each carries the camera it wants to be seen from
+(a TIE opens on the bow, where its X reads).
+
+A contact audit across all 21 — every module's box must overlap a neighbour's by
+at least a 0.10 tolerance — reports **zero orphaned modules**. Renders of all 21
+are in `docs/img/iconics/`.
 
 ![Lattice prototype](docs/img/corvette-lattice-hero.png)
 
