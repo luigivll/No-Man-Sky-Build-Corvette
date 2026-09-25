@@ -22,55 +22,55 @@ import type { V3 } from "../render3d";
 export function millenniumFalcon(bp: Blueprint): NamedRecipe {
   const parts: LatticePlacement[] = [];
 
-  // The saucer is the ship, and the Falcon is nearly as wide as it is long, so the
-  // disc is laid out as a hexagon of cells: a full row across the middle, tapering
-  // rows fore and aft, with scaled fillers biting the corners off.
-  const disc: [number, number, number][] = [
-    [0, 0, 1],
-    [1, 0, 1],
-    [-1, 0, 1],
-    [0.55, 1.05, 0.8],
-    [-0.55, 1.05, 0.8],
-    [0.55, -1.05, 0.8],
-    [-0.55, -1.05, 0.8],
-    [1.55, 0.35, 0.62],
-    [-1.55, 0.35, 0.62],
-    [1.5, -0.7, 0.62],
-    [-1.5, -0.7, 0.62],
-    [0, 1.75, 0.6],
-    [0, -1.75, 0.6],
-  ];
-  disc.forEach(([x, z, sc], i) => {
-    parts.push(put("B_CON_5", [x, 0, z], { scale: sc, role: i === 0 ? "saucer core" : "saucer plate" }));
-  });
+  // The pack has no round part at all — the roundest thing in it is a dome — so
+  // the YT-1300 disc is a MOSAIC: half-metre cells laid on a hex grid and kept
+  // only where they fall inside the circle. The silhouette is what makes the
+  // saucer read, and the silhouette is the grid's outline.
+  const R = 2.1;
+  const pitch = 0.5;
+  for (let z = -R; z <= R + 1e-6; z += pitch) {
+    const half = Math.sqrt(Math.max(0, R * R - z * z));
+    for (let x = -half; x <= half + 1e-6; x += pitch) {
+      // taper the outer rings so the edge of the disc steps down instead of
+      // ending in a square shoulder
+      const r = Math.hypot(x, z) / R;
+      const scale = r > 0.9 ? 0.42 : r > 0.7 ? 0.46 : 0.5;
+      parts.push(
+        put("B_CON_5", [Number(x.toFixed(2)), r > 0.9 ? -0.16 : 0, Number(z.toFixed(2))], {
+          scale,
+          role: r > 0.9 ? "rim plate" : "saucer plate",
+        }),
+      );
+    }
+  }
 
-  // forward mandibles: the Falcon's signature gap, overlapping the saucer rim
+  // forward mandibles, rooted inside the rim so they are one hull with the disc
   parts.push(
-    put("B_CON_5", [0.5, 0, 1.75], { role: "mandible" }),
-    put("B_CON2_2", [0.5, 0, 2.9], { scale: 0.9, role: "mandible" }),
-    put("B_STR_A_N", [0.5, 0, 4.0], { role: "mandible tip" }),
-    put("B_CON_5", [-0.5, 0, 1.75], { mirror: true, role: "mandible" }),
-    put("B_CON2_2", [-0.5, 0, 2.9], { mirror: true, scale: 0.9, role: "mandible" }),
-    put("B_STR_A_N", [-0.5, 0, 4.0], { mirror: true, role: "mandible tip" }),
+    put("B_CON_5", [0.62, 0, 1.65], { scale: 0.6, role: "mandible root" }),
+    put("B_CON_5", [0.62, 0, 2.3], { scale: 0.6, role: "mandible" }),
+    put("B_STR_A_N", [0.62, 0, 2.95], { scale: 0.6, role: "mandible tip" }),
+    put("B_CON_5", [-0.62, 0, 1.65], { mirror: true, scale: 0.6, role: "mandible root" }),
+    put("B_CON_5", [-0.62, 0, 2.3], { mirror: true, scale: 0.6, role: "mandible" }),
+    put("B_STR_A_N", [-0.62, 0, 2.95], { mirror: true, scale: 0.6, role: "mandible tip" }),
   );
 
-  // offset cockpit on its own access tube, starboard
+  // offset cockpit on its own access tube, starboard, jammed into the rim
   parts.push(
-    put("B_CON_5", [1.75, 0.05, 1.15], { scale: 0.9, role: "cockpit tube" }),
-    put("B_COK_B", [2.4, 0.05, 0.85], { role: "cockpit" }),
-    // side docking rings, flush on the rim
-    put("B_SHL_A", [1.78, -0.15, -0.4], { role: "docking ring stbd" }),
-    put("B_SHL_A", [-1.78, -0.15, -0.4], { mirror: true, role: "docking ring port" }),
-    // three heat exchangers across the back, not one big drum
-    ...row("B_TRU_A", [-1.0, 0, 1.0], 0, -2.5, { role: "heat exchanger" }),
-    put("B_TRU_D", [0, 0.05, -3.05], { role: "main engine" }),
+    put("B_CON2_2", [1.55, 0.04, 1.15], { scale: 0.75, role: "cockpit tube" }),
+    put("B_COK_B", [2.2, 0.04, 0.9], { scale: 0.9, role: "cockpit" }),
+    // docking rings flush against the rim
+    put("B_SHL_A", [1.62, -0.1, -0.7], { role: "docking ring stbd" }),
+    put("B_SHL_A", [-1.62, -0.1, -0.7], { mirror: true, role: "docking ring port" }),
+    // engine bank across the back: three exchangers plus the main drive
+    ...row("B_TRU_A", [-0.58, 0, 0.58], 0, -1.9, { role: "heat exchanger" }),
+    put("B_TRU_D", [0, 0.05, -2.0], { role: "main drive" }),
   );
   parts.push(
     ...compact([
-      standing("B_TUR_A", parts, 1.6, 0.4, { role: "dorsal quad turret" }),
-      hanging("B_TUR_A", parts, 1.6, 0.4, { role: "ventral quad turret" }),
-      standing("B_SHL_C", parts, -1.2, 0.6, { role: "sensor dish" }),
-      standing("B_ALK_B", parts, 0, -0.5, { role: "dorsal spine" }),
+      standing("B_TUR_A", parts, 0.7, 1.0, { role: "dorsal quad turret" }),
+      hanging("B_TUR_A", parts, 0.7, 1.0, { role: "ventral quad turret" }),
+      standing("B_SHL_C", parts, -0.9, -0.4, { role: "sensor dome" }),
+      standing("B_ALK_B", parts, 0, 0.4, { role: "dorsal spine" }),
     ]),
   );
 
@@ -79,7 +79,7 @@ export function millenniumFalcon(bp: Blueprint): NamedRecipe {
     view: { yaw: 0.5, pitch: -0.6, zoom: 1 },
     paint: { hull: "#b9bcc0", hullDark: "#3d4045", emissive: "#5ec8ff", glow: 0.55 },
     blurb:
-      "A nine-cell saucer with the corner cut, two forward mandibles, the offset cockpit tube and the heat exchangers across the back.",
+      "A disc of hull plates on a hex grid, two forward mandibles, the offset cockpit tube on its access corridor and the engine bank across the back.",
   });
 }
 
