@@ -313,7 +313,10 @@ export function span(assetId: string, a: V3, b: V3, opts: SpanOpts = {}): Lattic
   }
 
   const roll = opts.roll ?? Math.atan2(dy, dx);
-  const stretchX = Math.max(0.1, Math.hypot(dx, dy) / spanLen);
+  // Stretch along the part's own axis, not along the sloped target: a wing that
+  // droops 30 degrees is not 30 % longer than one that does not, and stretching it
+  // to the hypotenuse is what tears the mesh away from its own root.
+  const stretchX = Math.max(0.1, Math.abs(dx) / spanLen);
   // A mirrored part maps local +x onto world -x, so the root lands on the other
   // side of the anchor. Both cases put the part's INBOARD face on the anchor,
   // which is the whole contract of this helper.

@@ -349,6 +349,8 @@ export function rocinante(bp: Blueprint): NamedRecipe {
 export function nostromo(bp: Blueprint): NamedRecipe {
   const parts: LatticePlacement[] = [];
 
+  // An M-class tug is a big blocky industrial hull, so the spine is two cells
+  // tall and three wide amidships instead of a single row of modules.
   parts.push(
     ...chainZ([
       "B_COK_D",
@@ -360,17 +362,27 @@ export function nostromo(bp: Blueprint): NamedRecipe {
       "B_CON2_1",
       "B_STR_A_N",
     ]),
+    // second deck over the cargo run
+    ...chainZ(["B_HAB_A", "B_HAB_A", "B_CON2_0"]).map((p) => ({
+      ...p,
+      pos: [0, 0.52, p.pos[2] - 4.1] as V3,
+      role: "upper deck",
+    })),
+    // side plating, so the hull has width and the deck lights sit in a wall
+    ...["B_CON_6", "B_CON_7", "B_CON_8"]
+      .map((id, i) => put(id, [1.0, 0, -4.6 - i * 1.0], { role: "side plating" }))
+      .flatMap((p) => [p, { ...p, pos: [-p.pos[0], p.pos[1], p.pos[2]] as V3, mirror: true }]),
   );
 
-  // Towing arms: two long slim prongs run forward off the bow. That silhouette —
-  // a blunt industrial hull with two needles reaching ahead of it — is the
+  // Towing arms: two needles reaching ahead of the bow, about a third of the hull
+  // long apiece. That silhouette — blunt industrial hull, two prongs — is the
   // Nostromo's face, and boxy arms do not read as it.
   for (const side of [1, -1] as const) {
     const px = side * 0.95;
     parts.push(
-      span("B_WNG_R", [px, -0.05, 0.6], [px, -0.05, 4.5], { scale: 0.16, role: "towing arm" }),
-      span("B_WNG_R", [px, 0.35, 0.6], [px, 0.35, 3.9], { scale: 0.12, role: "towing arm upper" }),
-      put("B_STR_A_N", [px, 0.16, 4.2], { scale: 0.55, mirror: side < 0, role: "arm clamp" }),
+      span("B_WNG_R", [px, -0.05, 0.6], [px, -0.05, 3.2], { scale: 0.16, role: "towing arm" }),
+      span("B_WNG_R", [px, 0.35, 0.6], [px, 0.35, 2.9], { scale: 0.12, role: "towing arm upper" }),
+      put("B_STR_A_N", [px, 0.16, 3.0], { scale: 0.55, mirror: side < 0, role: "arm clamp" }),
     );
   }
 
@@ -385,27 +397,27 @@ export function nostromo(bp: Blueprint): NamedRecipe {
   );
   tower.push(
     standing("B_SHL_A", [...parts, ...tower], 0, -6.0, { role: "vent stack" }) as LatticePlacement,
-    standing("B_TUR_B", [...parts, ...tower], 0.55, -6.0, { role: "crane" }) as LatticePlacement,
+    standing("B_TUR_B", [...parts, ...tower], 0.6, -6.0, { role: "crane" }) as LatticePlacement,
   );
   parts.push(...compact(tower));
 
   // outboard engine pods on stub arms, plus the inboard bank
   parts.push(
-    ...spanPair("B_WNG_R", [0.4, 0, -8.2], [2.8, 0, -8.2], { scale: 0.6, role: "engine arm" }),
-    ...pod(["B_TRU_C", "B_TRU_D"], 2.8, 0, -8.4, { role: "outboard engine" }),
-    ...pod(["B_TRU_C", "B_TRU_D"], -2.8, 0, -8.4, { role: "outboard engine" }).map((p) => ({
+    ...spanPair("B_WNG_R", [0.4, 0, -8.2], [2.4, 0, -8.2], { scale: 0.6, role: "engine arm" }),
+    ...pod(["B_TRU_C", "B_TRU_D"], 2.4, 0, -8.4, { role: "outboard engine" }),
+    ...pod(["B_TRU_C", "B_TRU_D"], -2.4, 0, -8.4, { role: "outboard engine" }).map((p) => ({
       ...p,
       mirror: true,
     })),
-    ...row("B_TRU_D", [-0.6, 0.6], 0, -8.6, { role: "main engine" }),
+    ...row("B_TRU_D", [-0.6, 0.6], 0, -8.8, { role: "main engine" }),
   );
 
   return recipeFor(bp, {
-    parts,
+    parts: compact(parts),
     view: { yaw: 0.7, pitch: -0.34, zoom: 1 },
     paint: { hull: "#8b8f92", hullDark: "#2f3235", emissive: "#ffc36b", glow: 0.5 },
     blurb:
-      "Eight-cell spine with towing arms forward, a three-tier refinery tower amidships and two outboard engine pods on stub arms.",
+      "A two-deck industrial hull three cells wide, two towing needles reaching ahead of the bow, a three-tier refinery tower amidships and two outboard engine pods.",
   });
 }
 

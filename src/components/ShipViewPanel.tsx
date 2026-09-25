@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import HullSchematic from "./HullSchematic";
-import ShipPreview3D from "./ShipPreview3D";
+import RealMeshView from "./RealMeshView";
 import { Icon } from "./Icon";
 import { SHIP_STYLES } from "@/lib/shipStyles";
 import type { Build } from "@/lib/types";
@@ -92,13 +92,9 @@ export default function ShipViewPanel({
       </header>
 
       {mode === "ship" ? (
-        <ShipPreview3D
-          build={build}
-          height={height}
-          style={activeStyle}
-          onStyleChange={setShipStyle}
-          showStylePicker={showPalette}
-        />
+        // Real geometry: the panel used to hand back polygon stand-ins, which is
+        // the difference between previewing your corvette and previewing a crate.
+        <RealMeshView build={build} height={height} />
       ) : (
         <HullSchematic build={build} height={height} />
       )}
