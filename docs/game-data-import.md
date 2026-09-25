@@ -10,7 +10,21 @@ licence note at the bottom.
 
 ---
 
-## 1. Unpack the game archives (you)
+## 0. Which kind of package do you have?
+
+Two completely different container families show up, and they need different
+tools. Check the magic before downloading anything:
+
+| What you have | Magic / signs | Read it with |
+| --- | --- | --- |
+| **No Man's Sky game archives** | `NMSARC.<hash>.pak`, PSARC format, in `GAMEDATA/PCBANKS` | PSArcTool + MBINCompiler |
+| **An Unreal Engine app** (e.g. the fan-made *No Man's Sky Base Builder*) | `.pak` + matching `.ucas` and `.utoc` side by side, in `Content/Paks/` | FModel / UnrealPak - **PSArcTool will not open these** |
+
+The two need different pipelines, so identify the family first.
+`scripts/unreal/inspect-pak.py <file>` reads the Unreal family directly (see
+section 5).
+
+## 1. Unpack No Man's Sky game archives (you)
 
 No Man's Sky stores its assets in `.pak` files (PSARC archives) under
 `GAMEDATA/PCBANKS`. Community tools:
@@ -92,6 +106,38 @@ can import the extracted meshes) with the part in its own local space. The loade
 * falls back to the built-in generated geometry for any part with no model.
 
 Everything in `public/models/` except its README is git-ignored.
+
+## 5. Unreal Engine packages (the Base Builder app)
+
+The community *No Man's Sky Base Builder* app is built with Unreal Engine, so its
+content sits in IoStore containers:
+
+```
+Content/Paks/
+  NoMansSkyBaseBuilder-Windows.pak     <- UnrealPak index / loose files
+  NoMansSkyBaseBuilder-Windows.utoc    <- IoStore table of contents (the index)
+  NoMansSkyBaseBuilder-Windows.ucas    <- IoStore payload (the actual assets)
+```
+
+* The **`.utoc` is the important small file**: it lists every asset path, so it
+  says exactly which models exist and what they are called. It is about 1 MB.
+* The **`.ucas` holds the data** and is hundreds of MB, so it cannot be sent
+  through git or chat. Export from it locally instead.
+
+`scripts/unreal/inspect-pak.py` reads both formats with no external tools:
+
+```bash
+python3 scripts/unreal/inspect-pak.py path/to/NoMansSkyBaseBuilder-Windows.utoc
+python3 scripts/unreal/inspect-pak.py path/to/NoMansSkyBaseBuilder-Windows.pak
+```
+
+It prints the container version and every asset path it can recover, which gives
+the exact list of parts to export.
+
+To get the meshes out of the `.ucas`, use **FModel** on Windows (free, open
+source): add `Content/Paks` as a directory, browse the asset tree, and export the
+static meshes as glTF/OBJ. Put the results in `public/models/` renamed to the part
+ids, then run the model import.
 
 ---
 
