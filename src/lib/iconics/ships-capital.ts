@@ -151,54 +151,65 @@ export function starDestroyer(bp: Blueprint): NamedRecipe {
 
 export function enterprise(bp: Blueprint): NamedRecipe {
   const parts: LatticePlacement[] = [];
+  const DECK = 0;
 
-  // primary hull: three cells across by two deep, corners cut = a saucer
-  const cells: [number, number][] = [
-    [0, 1.0],
-    [1, 1.0],
-    [-1, 1.0],
-    [0, 0],
-    [1, 0],
-    [-1, 0],
-    [0.5, 0.5],
-    [-0.5, 0.5],
-    [0.5, -0.5],
-    [-0.5, -0.5],
+  // Primary hull: five cells across the waist tapering to three fore and aft, with
+  // the corners bitten off by scaled fillers. The neck then starts INSIDE that
+  // saucer, which is what keeps the two hulls joined instead of parked next to
+  // each other.
+  const disc: [number, number, number][] = [
+    [0, 1.5, 0.55],
+    [0, 0, 1],
+    [1, 0, 1],
+    [-1, 0, 1],
+    [1.8, 0, 0.6],
+    [-1.8, 0, 0.6],
+    [0.55, 1.0, 0.8],
+    [-0.55, 1.0, 0.8],
+    [1.45, 0.85, 0.6],
+    [-1.45, 0.85, 0.6],
+    [0.55, -1.1, 0.8],
+    [-0.55, -1.1, 0.8],
+    [1.45, -0.95, 0.6],
+    [-1.45, -0.95, 0.6],
+    [0, -1.9, 0.6],
   ];
-  for (const [x, z] of cells) {
+  disc.forEach(([x, z, sc], i) => {
     parts.push(
-      put("B_CON_5", [x, 0, z], { scale: x % 1 === 0 ? 1 : 0.72, role: "saucer cell" }),
+      put("B_CON_5", [x, DECK, z], { scale: sc, role: i === 0 ? "saucer core" : "saucer plate" }),
     );
-  }
+  });
   parts.push(
-    standing("B_HAB1_C", parts, 0, 0.5, { role: "bridge module" }) as LatticePlacement,
-    standing("B_SHL_C", parts, 0, -0.6, { role: "impulse deck" }) as LatticePlacement,
+    ...compact([
+      standing("B_HAB1_C", parts, 0, 0.5, { role: "bridge module" }),
+      standing("B_SHL_C", parts, 0, -1.9, { scale: 0.8, role: "impulse deck" }),
+    ]),
   );
 
-  // neck down to the secondary hull, then the engineering spine
+  // Neck: a structural node buried in the saucer's underside, then the engineering
+  // hull hangs off it two cells further aft.
+  const neck = put("B_STR_A_N", [0, -0.34, -1.95], { scale: 0.95, role: "neck" });
+  parts.push(neck);
+  // Engineering hull: three cells of body off the bottom of the neck, with the
+  // deflector dish up front and the nacelle pylons growing out of its flanks.
   parts.push(
-    put("B_STR_A_N", [0, -0.62, -1.5], { scale: 0.9, role: "neck" }),
-    ...chainZ(["B_HAB_A", "B_HAB_A", "B_CON2_0"], 0).map((p, i) => ({
-      ...p,
-      pos: [0, -0.62, p.pos[2] - (i === 0 ? 1.0 : 3.0)] as V3,
-      role: "secondary hull",
-    })),
-    put("B_SHL_A", [0, -0.62, 1.2], { role: "deflector dish" }),
+    put("B_HAB_A", [0, -0.34, -3.1], { role: "engineering hull" }),
+    put("B_HAB_A", [0, -0.34, -4.6], { role: "engineering hull" }),
+    put("B_CON2_0", [0, -0.34, -5.8], { role: "engineering hull aft" }),
+    put("B_SHL_A", [0, -0.52, -2.5], { role: "deflector dish" }),
   );
 
-  // two warp nacelles on swept pylons: the pylon is a stretched structural node
-  // rather than a wing, because the game's wings are three units of chord and
-  // read as blades bolted to the saucer
-  parts.push(
-    ...span("B_STR_A_N", [0.4, -0.1, -2.3], [1.45, 0.95, -2.9], { scale: 0.5, role: "nacelle pylon" })
-      ? spanPair("B_WNG_R", [0.4, -0.1, -2.3], [1.45, 0.95, -2.9], { scale: 0.22, role: "nacelle pylon" })
-      : [],
-  );
+  // Warp nacelles: pylons rise out of the engineering hull and the nacelles sit up
+  // and out, so the classic silhouette shows in the bow view too.
+  const pyA: V3 = [0.45, -0.2, -3.6];
+  const pyB: V3 = [1.5, 0.75, -3.9];
+  const pylons = spanPair("B_WNG_R", pyA, pyB, { scale: 0.22, role: "nacelle pylon" });
+  parts.push(...pylons);
   for (const side of [1, -1] as const) {
     parts.push(
-      ...chainZ(["B_TRU_H", "B_TRU_D", "B_TRU_H"]).map((p) => ({
+      ...chainZ(["B_TRU_H", "B_TRU_H", "B_TRU_D"]).map((p) => ({
         ...p,
-        pos: [side * 1.45, 0.95, p.pos[2] - 1.3] as V3,
+        pos: [side * 1.5, 0.75, p.pos[2] - 2.1] as V3,
         mirror: side < 0,
         role: "warp nacelle",
       })),
@@ -206,11 +217,11 @@ export function enterprise(bp: Blueprint): NamedRecipe {
   }
 
   return recipeFor(bp, {
-    parts,
+    parts: compact(parts),
     view: { yaw: 0.55, pitch: -0.45, zoom: 1 },
     paint: { hull: "#cfd6dd", hullDark: "#4b545e", emissive: "#7fc9ff", glow: 0.55 },
     blurb:
-      "A saucer of cells with the corners cut, the bridge on top, a neck down to the engineering hull and two nacelles on swept pylons.",
+      "A wide saucer with the corners cut and the bridge on top, a neck down to the engineering hull, and two nacelles on swept pylons rising off it.",
   });
 }
 
