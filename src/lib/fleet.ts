@@ -18,6 +18,11 @@ import type { Build } from "./types";
 
 export interface NamedRecipe extends LatticeRecipe {
   blurb: string;
+  /**
+   * Where the camera should open on this ship.  A TIE wants the bow (that is
+   * where the X of its blades reads), a Falcon wants the plan.
+   */
+  view?: { yaw: number; pitch: number; zoom: number };
 }
 
 function firstNavyProbe(): NamedRecipe {

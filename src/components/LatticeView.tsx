@@ -103,6 +103,7 @@ export default function LatticeView({ slug, height = 620 }: { slug: string; heig
             height={height}
             showStylePicker={false}
             initialView="hero"
+            initialViewState={recipe.view}
           />
         ) : (
           <div className="grid place-items-center px-6 py-20 text-center" style={{ minHeight: height }}>

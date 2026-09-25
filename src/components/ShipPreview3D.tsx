@@ -33,6 +33,7 @@ export default function ShipPreview3D({
   initialView = "hero",
   showStylePicker = true,
   mesh: suppliedMesh,
+  initialViewState,
 }: {
   build: Build;
   /**
@@ -49,9 +50,14 @@ export default function ShipPreview3D({
   onStyleChange?: (id: string) => void;
   initialView?: string;
   showStylePicker?: boolean;
+  /**
+   * A ship-specific opening camera, for hand-drawn iconics: the bow shows a
+   * TIE's blade cross or an X-Wing's foils, the plan shows a Falcon's saucer.
+   */
+  initialViewState?: ViewState;
 }) {
   const [view, setView] = useState<ViewState>(
-    VIEW_PRESETS.find((p) => p.id === initialView)?.view ?? VIEW_PRESETS[0].view,
+    initialViewState ?? VIEW_PRESETS.find((p) => p.id === initialView)?.view ?? VIEW_PRESETS[0].view,
   );
   const [spinning, setSpinning] = useState(false);
   const [hovered, setHovered] = useState<{ name: string; category: string } | null>(null);

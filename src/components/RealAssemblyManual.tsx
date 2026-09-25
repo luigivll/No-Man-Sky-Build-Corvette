@@ -162,6 +162,7 @@ export default function RealAssemblyManual({
               height={height}
               showStylePicker={false}
               initialView="hero"
+              initialViewState={recipe.view}
             />
           ) : (
             <div className="grid place-items-center" style={{ minHeight: height }}>
