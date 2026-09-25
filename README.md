@@ -25,6 +25,18 @@ npm run build
 npm start
 ```
 
+There is also a **fully offline local app** - no server, no internet, works from
+a double-click:
+
+```bash
+npm run build:static   # builds a plain static bundle into out/
+npm run start:local    # serves it on 127.0.0.1 and opens your browser
+```
+
+Or just double-click **`iniciar.bat`** (Windows) / run **`./iniciar.sh`**
+(macOS, Linux): the launcher installs dependencies on first run, builds if
+needed, and opens the shipyard.
+
 Extra scripts:
 
 ```bash
@@ -243,6 +255,14 @@ src/
     names.ts              # seeded RNG + procedural ship names
     data.ts / types.ts    # typed access to the JSON databases
 ```
+
+## Using your own game data
+
+The parts database is hand-authored so the app runs with nothing installed. If you
+own No Man's Sky and want the *real* module definitions (and optionally the real
+meshes) instead, see **[docs/game-data-import.md](docs/game-data-import.md)** for
+the unpacking pipeline and how to feed it in. Extracted assets stay local and are
+git-ignored.
 
 ## Notes
 
