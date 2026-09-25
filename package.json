@@ -12,7 +12,7 @@
     "verify": "tsx scripts/verify-logic.ts",
     "render:preview": "tsx scripts/render-preview.ts",
     "render:gallery": "tsx scripts/style-gallery.ts",
-    "build:static": "STATIC_EXPORT=1 next build",
+    "build:static": "node scripts/build-static.mjs",
     "start:local": "node scripts/start-local.mjs",
     "app": "electron .",
     "app:build": "npm run build:static && electron-builder --win --x64"
