@@ -32,8 +32,15 @@ export default function ShipPreview3D({
   onStyleChange,
   initialView = "hero",
   showStylePicker = true,
+  mesh: suppliedMesh,
 }: {
   build: Build;
+  /**
+   * Pre-built mesh.  The lattice assembler hands its own ShipMesh straight in,
+   * so a real-geometry corvette gets the same scene, lighting and controls as a
+   * catalogue build.
+   */
+  mesh?: ShipMesh;
   height?: number;
   compact?: boolean;
   showControls?: boolean;
@@ -94,8 +101,8 @@ export default function ShipPreview3D({
   }, [spinning]);
 
   const mesh: ShipMesh = useMemo(
-    () => buildShipMesh(build, { style: activeStyle }),
-    [build, activeStyle],
+    () => suppliedMesh ?? buildShipMesh(build, { style: activeStyle }),
+    [suppliedMesh, build, activeStyle],
   );
 
   const scene = useMemo(

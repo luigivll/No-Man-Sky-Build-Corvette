@@ -43,13 +43,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from fbx import decimate, extract_meshes, read_fbx  # noqa: E402
+from fbx import compact, decimate, extract_meshes, read_fbx  # noqa: E402
 
 # one corvette snap cell, measured from B_STR_*_N / B_CON_5 (6.00 x 3.00 x 6.00)
 GAME_UNIT = 6.0
 
-GRID = 40          # vertex-cluster resolution for decimation
-MAX_TRIS = 520     # triangles kept per part
+GRID = 400        # vertex-cluster resolution: fine enough to keep every detail
+MAX_TRIS = 9000    # triangles kept per part (only the few giants hit this)
 
 # --- real asset prefix -> shipyard category -------------------------------- #
 CATEGORY_RULES: list[tuple[str, str, str]] = [
@@ -150,7 +150,7 @@ def build(models_dir: Path, out_dir: Path) -> dict:
 
         from fbx import Mesh  # local import: keeps the top of the file tidy
 
-        dec = decimate(Mesh(merged_v, merged_i), grid=GRID, max_tris=MAX_TRIS)
+        dec = compact(decimate(Mesh(merged_v, merged_i), grid=GRID, max_tris=MAX_TRIS))
         verts, idx = dec.vertices, dec.indices
         if not verts or not idx:
             continue

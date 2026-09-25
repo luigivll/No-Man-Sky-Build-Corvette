@@ -265,16 +265,39 @@ def decimate(mesh: Mesh, grid: int = 48, max_tris: int = 1500) -> Mesh:
         tris.append((a, b, c))
 
     if max_tris and len(tris) > max_tris:
-        # keep the biggest-area triangles first, then restore original winding
-        scored = []
-        for a, b, c in tris:
-            scored.append((_tri_area(new_verts, a, b, c), (a, b, c)))
+        # Picking the largest triangles outright is a trap: in a clustered mesh
+        # the largest ones are the long thin slivers that bridge distant
+        # clusters, and keeping those is exactly what turns a hull into a field
+        # of spikes.  Score by area but scale each triangle down by how deformed
+        # it is (area / perimeter^2 is scale-invariant: ~0.048 for an
+        # equilateral, near zero for a needle), so big clean panels win and
+        # needles only get picked when there is nothing better left.
+        scored: list[tuple[float, tuple[int, int, int]]] = []
+        for tri in tris:
+            a, b, c = tri
+            area = _tri_area(new_verts, a, b, c)
+            if area <= 0.0:
+                continue
+            e0 = _edge_len(new_verts, a, b)
+            e1 = _edge_len(new_verts, b, c)
+            e2 = _edge_len(new_verts, c, a)
+            perim = e0 + e1 + e2
+            compact = 4.0 * area / (perim * perim) if perim > 0 else 0.0
+            score = area * min(1.0, (compact / 0.042) ** 2)
+            scored.append((score, tri))
         scored.sort(reverse=True, key=lambda p: p[0])
-        keep = {t for _, t in scored[:max_tris]}
-        tris = [t for t in tris if t in keep]
+        tris = [t for _, t in scored[:max_tris]]
 
     flat = [i for tri in tris for i in tri]
     return Mesh(new_verts, flat, None, mesh.name)
+
+
+def _edge_len(v: list[float], a: int, b: int) -> float:
+    return (
+        (v[a * 3] - v[b * 3]) ** 2
+        + (v[a * 3 + 1] - v[b * 3 + 1]) ** 2
+        + (v[a * 3 + 2] - v[b * 3 + 2]) ** 2
+    ) ** 0.5
 
 
 def _tri_area(v: list[float], a: int, b: int, c: int) -> float:
@@ -285,6 +308,27 @@ def _tri_area(v: list[float], a: int, b: int, c: int) -> float:
     vx, vy, vz = cx - ax, cy - ay, cz - az
     nx, ny, nz = uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx
     return (nx * nx + ny * ny + nz * nz) ** 0.5 * 0.5
+
+
+def compact(mesh: Mesh) -> Mesh:
+    """Drop vertices no surviving triangle references and renumber the indices.
+
+    `decimate` keeps every cluster it created, but the triangle-budget pass then
+    throws many of them away.  Those orphans still count towards the bounding box,
+    which silently inflates a part and makes it hover clear of its neighbours on
+    the lattice — so the mesh is squeezed down to exactly what gets drawn.
+    """
+    remap: dict[int, int] = {}
+    verts: list[float] = []
+    idx: list[int] = []
+    for i in mesh.indices:
+        j = remap.get(i)
+        if j is None:
+            j = len(verts) // 3
+            remap[i] = j
+            verts.extend(mesh.vertices[i * 3 : i * 3 + 3])
+        idx.append(j)
+    return Mesh(verts, idx, None, mesh.name)
 
 
 def normalize_mesh(mesh: Mesh, unit: bool = True, y_up: bool = True) -> dict:

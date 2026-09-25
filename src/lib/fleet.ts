@@ -14,28 +14,51 @@
  */
 
 import { chainZ, flank, stack, type LatticePlacement, type LatticeRecipe } from "./lattice";
+import type { Build } from "./types";
 
 export interface NamedRecipe extends LatticeRecipe {
   blurb: string;
 }
 
 function firstNavyProbe(): NamedRecipe {
-  // Spine: cockpit up front, two full habitation modules, armoured tail cap.
-  const spine = chainZ(["B_COK_A", "B_HAB_A", "B_HAB_A", "B_STR_A_N"]);
-  const [, hab1, hab2] = spine;
+  // Spine: flight deck, two habitation modules, a twin-cell connector and an
+  // armoured tail cap. Everything behind the cockpit butts onto the part in
+  // front of it, so the hull is watertight before anything is bolted on.
+  const spine = chainZ(["B_COK_A", "B_HAB_A", "B_HAB_A", "B_CON2_0", "B_STR_A_N"]);
+  const [, hab1, hab2, conn, tail] = spine;
 
   const parts: LatticePlacement[] = [
     ...spine,
-    // Wings root on the leading habitation module and sweep aft.
-    flank("B_WNG_A", hab1, { side: 1 }),
-    flank("B_WNG_A", hab1, { side: -1 }),
-    // Boosters clamp onto the flanks of the trailing hab, nozzle aft.
-    flank("B_TRU_B", hab2, { side: 1 }),
-    flank("B_TRU_B", hab2, { side: -1 }),
-    // Gear hangs off the ventral face: two forward legs, one at the tail.
-    stack("B_LND_A", hab1, { zOffset: 0.6 }),
-    stack("B_LND_A", hab1, { zOffset: -0.6 }),
-    stack("B_LND_A", hab2),
+
+    // --- wings: a canard pair up front, the main span amidships ------------
+    flank("B_WNG_E", hab1, { side: 1, zOffset: 0.85 }),
+    flank("B_WNG_E", hab1, { side: -1, zOffset: 0.85 }),
+    flank("B_WNG_A", hab2, { side: 1, zOffset: 0.75 }),
+    flank("B_WNG_A", hab2, { side: -1, zOffset: 0.75 }),
+    flank("B_WNG_I", hab2, { side: 1, zOffset: -0.85 }),
+    flank("B_WNG_I", hab2, { side: -1, zOffset: -0.85 }),
+
+    // --- propulsion: flank boosters plus a pair on the tail cap ------------
+    flank("B_TRU_C", conn, { side: 1, yOffset: -0.02 }),
+    flank("B_TRU_C", conn, { side: -1, yOffset: -0.02 }),
+    flank("B_TRU_G", tail, { side: 1, yOffset: -0.04 }),
+    flank("B_TRU_G", tail, { side: -1, yOffset: -0.04 }),
+
+    // --- legs: two forward, two aft, all on the ventral face ---------------
+    stack("B_LND_A", hab1, { zOffset: 0.72 }),
+    stack("B_LND_A", hab1, { zOffset: -0.72 }),
+    stack("B_LND_C", conn, { zOffset: 0.6 }),
+    stack("B_LND_A", tail, {}),
+
+    // --- dorsal kit: hardpoints are the module's own top face --------------
+    stack("B_SHL_A", hab1, { below: false, zOffset: -0.5 }),
+    stack("B_GEN_0", hab2, { below: false, zOffset: 0.55 }),
+    stack("B_TUR_A", hab1, { below: false, zOffset: 0.5 }),
+    stack("B_TUR_C", hab2, { below: false, zOffset: -0.55 }),
+    stack("B_DECO_C", hab2, { below: false, zOffset: 0 }),
+
+    // --- one ventral turret, so the belly is not bare ----------------------
+    stack("B_TUR_E", hab2, { below: true, zOffset: 0.4 }),
   ];
 
   return {
@@ -43,11 +66,14 @@ function firstNavyProbe(): NamedRecipe {
     name: "Lattice Probe",
     role: "Corvette, standard spine",
     blurb:
-      "A plain workshop corvette: flight deck, two habitation modules, swept wings and a pair of flank boosters, standing on three legs.",
-    hull: "#93a0b6",
-    hullDark: "#141922",
+      "A fully kitted workshop corvette: flight deck, twin habitation modules, " +
+      "twin-cell connector and armoured tail, six wings, four boosters, four legs " +
+      "and a dorsal battery of shield, reactor and turrets.",
+    hull: "#9aa7bd",
+    hullDark: "#12161f",
     emissive: "#ff8a30",
-    glow: 0.6,
+    glow: 0.62,
+    environment: "space",
     parts,
   };
 }
@@ -56,4 +82,21 @@ export const LATTICE_RECIPES: NamedRecipe[] = [firstNavyProbe()];
 
 export function recipeById(id: string): NamedRecipe | undefined {
   return LATTICE_RECIPES.find((r) => r.id === id);
+}
+
+/**
+ * `ShipPreview3D` wants a `Build` for its chrome (part counts, hover labels).
+ * The lattice is not driven by the catalogue, so it gets an empty one and the
+ * mesh is handed over directly.
+ */
+export function latticeBuild(recipe: NamedRecipe): Build {
+  return {
+    id: recipe.id,
+    name: recipe.name,
+    createdAt: 0,
+    slots: {},
+    roles: [],
+    origin: "blueprint",
+    designation: recipe.role,
+  };
 }

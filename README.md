@@ -30,8 +30,15 @@ next.z = current.z + current.zMin - next.zMax
 ```
 
 `src/lib/lattice.ts` is the engine (`chainZ`, `flank`, `stack`), `src/lib/fleet.ts`
-holds the recipes. Stage 1 is a single hand-built spine; the iconics move over
-next.
+holds the recipes. The stage-1 probe is a fully kitted corvette: flight deck, two
+habitation modules, a twin-cell connector and armoured tail, six wings, four
+boosters, four legs and a dorsal battery — 25 modules, ~85k triangles at true
+scale, with engine trails fired out of each booster's own aft face.
+
+Mesh quality is set by `GRID` / `MAX_TRIS` in `build-part-models.py`. Clustering
+coarsely is a trap: it snaps the surface to a lattice and turns hull plating into
+spikes, so the grid is fine (400) and only the handful of giant parts hit the
+triangle budget. 8.2 MB packed for 1.18M source triangles.
 
 ![Lattice prototype](docs/img/corvette-lattice-hero.png)
 

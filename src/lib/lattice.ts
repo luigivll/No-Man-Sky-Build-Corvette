@@ -42,6 +42,11 @@ export interface LatticePlacement {
   mirror?: boolean;
   /** label used by the manual / parts list */
   role?: string;
+  /**
+   * Fires an engine trail out of this part's aft face. Boosters get it
+   * automatically; anything else can opt in (a rear-facing vent, a flare pod).
+   */
+  plume?: { radius?: number; length?: number } | false;
 }
 
 export interface LatticeRecipe {
@@ -53,6 +58,8 @@ export interface LatticeRecipe {
   hullDark: string;
   emissive: string;
   glow?: number;
+  /** "space" gives long engine trails over a starfield, "hangar" short ones */
+  environment?: "space" | "hangar";
   parts: LatticePlacement[];
 }
 
@@ -201,16 +208,30 @@ export function stack(
 //  shading + mesh build
 // --------------------------------------------------------------------------- //
 
-const LIGHT: V3 = (() => {
-  const v: V3 = [-0.42, 0.76, -0.5];
-  const l = Math.hypot(...v);
+/**
+ * Three-point rig, tuned for flat metal plating.
+ *
+ *   KEY   warm, upper-left-forward   — carries the form
+ *   FILL  cool, lower-right          — keeps the shadow side readable
+ *   RIM   hot, aft-starboard         — separates the hull from the backdrop
+ *
+ * A Blinn half-vector gives the specular sheen; without it the panels read as
+ * card rather than plate.
+ */
+function unit(v: V3): V3 {
+  const l = Math.hypot(v[0], v[1], v[2]) || 1;
   return [v[0] / l, v[1] / l, v[2] / l];
-})();
-const RIM: V3 = (() => {
-  const v: V3 = [0.6, 0.22, 0.77];
-  const l = Math.hypot(...v);
-  return [v[0] / l, v[1] / l, v[2] / l];
-})();
+}
+
+const KEY = unit([-0.44, 0.72, -0.54]);
+const FILL = unit([0.58, -0.34, 0.62]);
+const RIM = unit([0.66, 0.26, 0.7]);
+const EYE = unit([-0.34, 0.26, -0.9]);
+const HALF = unit([KEY[0] + EYE[0], KEY[1] + EYE[1], KEY[2] + EYE[2]]);
+
+const KEY_TINT: [number, number, number] = [1.04, 0.99, 0.93];
+const FILL_TINT: [number, number, number] = [0.52, 0.68, 0.92];
+const SPEC_TINT: [number, number, number] = [1.0, 0.97, 0.9];
 
 function hexRgb(hex: string): [number, number, number] {
   const h = hex.replace("#", "");
@@ -239,6 +260,7 @@ export function assembleCorvette(recipe: LatticeRecipe, opts: AssembleOptions = 
 
   const parts: ShipMesh["parts"] = [];
   const modules: ShipMesh["modules"] = [];
+  const plumes: ShipMesh["plumes"] = [];
   const boundsMin: V3 = [Infinity, Infinity, Infinity];
   const boundsMax: V3 = [-Infinity, -Infinity, -Infinity];
 
@@ -297,15 +319,27 @@ export function assembleCorvette(recipe: LatticeRecipe, opts: AssembleOptions = 
         nz = -nz;
       }
 
-      const key01 = Math.max(0, nx * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2]);
+      const key = Math.max(0, nx * KEY[0] + ny * KEY[1] + nz * KEY[2]);
+      const fill = Math.max(0, nx * FILL[0] + ny * FILL[1] + nz * FILL[2]);
       const rim = Math.max(0, nx * RIM[0] + ny * RIM[1] + nz * RIM[2]);
-      const lit = 0.16 + 0.74 * key01 + 0.14 * Math.max(0, ny) + 0.2 * rim * rim;
-      const base = mixRgb(hullDark, hull, Math.min(1, lit));
-      const rgb = mixRgb(base, emissive, Math.max(0, rim * rim * glowStrength));
+      const half = Math.max(0, nx * HALF[0] + ny * HALF[1] + nz * HALF[2]);
+      const spec = Math.pow(half, 26) * 0.5 + Math.pow(half, 6) * 0.06;
+
+      // ramp: deep shadow -> plate -> lit plate, then add the cool fill bounce
+      let lit = 0.1 + 0.6 * key + 0.12 * key * key;
+      let base = mixRgb(hullDark, hull, Math.min(1, lit));
+      base = mixRgb(base, [base[0] * FILL_TINT[0], base[1] * FILL_TINT[1], base[2] * FILL_TINT[2]], fill * 0.5);
+      base = [
+        base[0] * KEY_TINT[0] + spec * SPEC_TINT[0] * 255,
+        base[1] * KEY_TINT[1] + spec * SPEC_TINT[1] * 255,
+        base[2] * KEY_TINT[2] + spec * SPEC_TINT[2] * 255,
+      ];
+      const rimGlow = Math.pow(rim, 2.2);
+      const rgb = mixRgb(base, emissive, Math.max(0, rimGlow * glowStrength));
       faces.push({
         pts,
         rgb: [rgb[0], rgb[1], rgb[2]],
-        kind: glowStrength > 0.5 && rim > 0.9 ? "emissive" : "hull",
+        kind: glowStrength > 0.5 && rim > 0.93 ? "emissive" : "hull",
       });
 
       for (const pt of pts) {
@@ -313,6 +347,27 @@ export function assembleCorvette(recipe: LatticeRecipe, opts: AssembleOptions = 
           boundsMin[k] = Math.min(boundsMin[k], pt[k]);
           boundsMax[k] = Math.max(boundsMax[k], pt[k]);
         }
+      }
+    }
+
+    // Engine trail: fires out of the part's own aft face, so it lines up with
+    // the nozzle without anyone having to hand-place it.
+    const wantsPlume = place.plume !== false && (place.plume || place.assetId.startsWith("B_TRU"));
+    if (wantsPlume) {
+      const own = placedBox(place.assetId, place.pos, yaw, mirror);
+      if (own) {
+        const cfg = typeof place.plume === "object" ? place.plume : {};
+        const spanX = own.max[0] - own.min[0];
+        const spanY = own.max[1] - own.min[1];
+        const radius = cfg.radius ?? Math.min(spanX, spanY) * 0.3;
+        plumes.push({
+          origin: [(own.min[0] + own.max[0]) / 2, (own.min[1] + own.max[1]) / 2, own.min[2]],
+          dir: [0, 0, -1],
+          radius,
+          length: cfg.length ?? radius * 5.5,
+          rgb: emissive,
+          ring: { radius: radius * 1.45, rgb: mixRgb(emissive, [255, 255, 255], 0.45) },
+        });
       }
     }
 
@@ -339,12 +394,12 @@ export function assembleCorvette(recipe: LatticeRecipe, opts: AssembleOptions = 
 
   return {
     parts,
-    plumes: [],
+    plumes,
     bounds: { min: boundsMin, max: boundsMax },
     groundY: boundsMin[1],
     moduleCount: parts.length,
     style: {
-      environment: "hangar",
+      environment: recipe.environment ?? "space",
     } as never,
     attachments: [],
     modules,
