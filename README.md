@@ -40,7 +40,30 @@ coarsely is a trap: it snaps the surface to a lattice and turns hull plating int
 spikes, so the grid is fine (400) and only the handful of giant parts hit the
 triangle budget. 8.2 MB packed for 1.18M source triangles.
 
+### Iconic ships, same engine
+
+Every one of the 21 iconic blueprints is compiled into a lattice recipe by
+`src/lib/blueprintLattice.ts`, so `/lattice/<slug>` renders the real ship instead
+of a stand-in. The spine chains cockpit → habitation (with walkways broken
+through it) → landing bays → an armoured cap; wings mount in mirrored pairs,
+either both on one station and split high/low (the X in an X-Wing) or spread
+along the spine for wider sets; heavy boosters go aft, light thrusters amidships.
+
+Two rules keep the result honest:
+
+* **Nothing floats.** `fitY()` clamps how far an outboard part may rise or drop
+  so at least 30 % of its height stays buried in the host module. An audit over
+  all 21 ships (`max |gap| = 0.06`) reports **zero orphaned modules**.
+* **Pairs mirror.** Nacelles are grouped by asset id first, so a pair of the same
+  booster always lands on one station with opposite sides; an odd unit rides the
+  centreline behind the tail.
+
+`/assembly/<slug>` opens with the same recipe as a real-mesh walkthrough: step N
+draws the first N modules and repaints the one that just arrived.
+
 ![Lattice prototype](docs/img/corvette-lattice-hero.png)
+
+![X-Wing from the bow, real parts](docs/img/x-wing-lattice-bow.png)
 
 Rebuild the pack at any time:
 
