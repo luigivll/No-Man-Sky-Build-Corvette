@@ -14,6 +14,7 @@ const LINKS = [
   { href: "/blueprints", label: "Iconic Blueprints", icon: "Ship" },
   { href: "/assembly", label: "Assembly Manual", icon: "ClipboardList" },
   { href: "/parts", label: "Parts Codex", icon: "BookOpen" },
+  { href: "/models", label: "Real Meshes", icon: "Boxes" },
   { href: "/hangar", label: "My Hangar", icon: "Save" },
 ];
 

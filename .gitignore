@@ -33,6 +33,9 @@ yarn-error.log*
 /scripts/out
 
 # extracted game meshes live here for local use only - see README
-# "Real part models": they are Hello Games' assets and are never committed
+# Raw exported part models (user-supplied) are never committed...
 /public/models/*
 !/public/models/README.md
+# ...but the generated shipyard pack IS, because the app cannot build without it.
+!/public/models/corvette.bin
+!/public/models/corvette.json

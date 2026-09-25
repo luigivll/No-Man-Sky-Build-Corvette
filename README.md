@@ -9,6 +9,24 @@ Built with **Next.js (App Router) + React 19 + TypeScript + Tailwind CSS v4** an
 **lucide-react** icons. Dark, neon, space-terminal aesthetic. No backend, no
 database — everything runs client-side off two local JSON files.
 
+### Real part meshes
+
+The ship previews no longer use stand-in boxes. `public/models/corvette.bin`
+holds **589 actual corvette part meshes** — `B_COK_A` cockpits, `B_STR_*_N` hull
+blocks, `B_WNG_*` wings, `B_LND_*` landing gear, `B_TRU_*` boosters, `B_TUR_*`
+turrets, `B_SHL_*` shields, `B_GEN_*` reactors and the whole decoration set —
+converted from the corvette model library that ships with the open-source
+*No Man's Sky Base Builder* add-on, at their true relative scale (one snap cell
+is 6.0 × 3.0 × 6.0 source units). See them all at **`/models`**.
+
+Rebuild the pack at any time:
+
+```bash
+python3 scripts/unreal/fbx.py                  # the FBX reader
+python3 scripts/unreal/build-part-models.py \
+  ../nms-base-builder/src/addons/no_mans_sky_base_builder/models/corvette
+```
+
 ---
 
 ## Quick start
