@@ -13,7 +13,9 @@
     "render:preview": "tsx scripts/render-preview.ts",
     "render:gallery": "tsx scripts/style-gallery.ts",
     "build:static": "STATIC_EXPORT=1 next build",
-    "start:local": "node scripts/start-local.mjs"
+    "start:local": "node scripts/start-local.mjs",
+    "app": "electron .",
+    "app:build": "npm run build:static && electron-builder --win --x64"
   },
   "dependencies": {
     "@fontsource/jetbrains-mono": "^5.3.0",
@@ -35,6 +37,37 @@
     "postcss": "^8.5.28",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.13",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "main": "electron/main.cjs",
+  "build": {
+    "appId": "com.nmscorvetteshipyard.app",
+    "productName": "NMS Corvette Shipyard",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "scripts/static-server.mjs",
+      "out/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    }
   }
 }

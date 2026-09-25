@@ -256,6 +256,17 @@ src/
     data.ts / types.ts    # typed access to the JSON databases
 ```
 
+## Desktop app (optional)
+
+```bash
+npm run app          # run it as a desktop window (Electron)
+npm run app:build    # package a Windows .exe installer into release/
+```
+
+`app:build` needs to run on your own machine - it downloads the Electron runtime
+and builds a Windows installer, which is not possible from the development
+sandbox. Both commands need `npm install` to have run once.
+
 ## Using your own game data
 
 The parts database is hand-authored so the app runs with nothing installed. If you

@@ -30,11 +30,33 @@ Corvette module entries rather than unpacking everything.
 
 * **Module definitions** - the Corvette build pieces are data objects. Their
   `.EXML` carries the real id, display name, price, category and the socket /
-  attachment flags.
+  attachment flags. **This is the file that matters most** and it is small.
 * **Meshes** - model meshes live in `.GEOMETRY.MBIN` files (ship assets sit under
-  `models/…`). The `.EXML` of a geometry file contains the vertex data.
+  `models/…`). Converting those to something renderable is the hard part; export
+  them to `.obj` with Blender rather than trying to decode them by hand.
 
-## 3. Feeding the app
+To find the module definitions, extract one archive and search the extracted tree
+for `CORVETTE`, `SHIPMODULE`, `BUILDABLE` or plain `corvette` in the file names.
+`.MBIN` files are binary until you drop them on MBINCompiler, which writes the
+`.EXML` next to them.
+
+## 3. How to hand the files over
+
+The sandbox this app is developed in **cannot reach GitHub's release-asset
+domain** (`release-assets.githubusercontent.com` is firewalled), so uploading the
+raw `.pak` to a Release does not help: it can be uploaded but not downloaded
+again. Git itself does work, and so do chat attachments. Two routes:
+
+| Route | Best for | How |
+| --- | --- | --- |
+| **Chat attachment** | Anything up to a few MB - all the `.EXML` you need is small text | Attach the files (or a `.zip`) in the conversation |
+| **Git branch** | Bigger sets, or anything you want to keep | Put the files in `game-data/` and push a branch; the folder is read from there |
+
+Note that the raw `.pak` (250-300 MB) cannot go through git either: GitHub rejects
+files over 100 MB. Convert to `.EXML` first - that is where all the readable data
+lives, and it is what the import actually consumes.
+
+## 4. Feeding the app
 
 Two independent upgrades, either one is useful on its own:
 
