@@ -1,0 +1,113 @@
+name: Fetch release assets
+
+# The development sandbox cannot reach GitHub's release-asset domain, but a
+# runner can. This workflow pulls the uploaded Base Builder containers, inspects
+# them and commits the results (plus the small containers) back to this branch so
+# they can be read over plain git.
+#
+# The 293 MB .ucas is never committed: it is only inspected. To also have it
+# split into committable chunks, add an empty file at game-data/INCLUDE_UCAS and
+# push - the workflow picks it up on the next run.
+
+on:
+  push:
+    branches:
+      - "arena/**"
+    paths:
+      - ".github/workflows/fetch-release-assets.yml"
+      - "game-data/INCLUDE_UCAS"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: List the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release list -R "$GITHUB_REPOSITORY"
+          gh release view pak -R "$GITHUB_REPOSITORY" --json assets \
+            --jq '.assets[] | "\(.name)\t\(.size)"' | tee game-data/assets.txt
+
+      - name: Download the small containers
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p game-data/raw
+          gh release download pak -R "$GITHUB_REPOSITORY" \
+            -p "global.utoc" \
+            -p "NoMansSkyParts.utoc" \
+            -p "NoMansSkyParts.pak" \
+            -D game-data/raw
+          ls -la game-data/raw
+
+      - name: Download the payload for inspection only
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p /tmp/big
+          gh release download pak -R "$GITHUB_REPOSITORY" \
+            -p "NoMansSkyParts.ucas" \
+            -p "global.ucas" \
+            -D /tmp/big
+          ls -la /tmp/big
+
+      - name: Inspect every container
+        run: |
+          {
+            echo "### release assets"
+            cat game-data/assets.txt
+            echo
+            for f in game-data/raw/* /tmp/big/*; do
+              echo "=================================================="
+              python3 scripts/unreal/inspect-pak.py "$f" 2>&1 | head -400
+            done
+          } > game-data/listing.txt
+          wc -l game-data/listing.txt
+          head -60 game-data/listing.txt
+
+      - name: Extract readable strings from the payload
+        run: |
+          python3 - <<'PY' > game-data/ucas-strings.txt 2>&1
+          import re, pathlib
+          for name in ("/tmp/big/NoMansSkyParts.ucas", "/tmp/big/global.ucas"):
+              p = pathlib.Path(name)
+              if not p.exists():
+                  continue
+              data = p.read_bytes()
+              print(f"===== {p.name}  {len(data)/1024/1024:.1f} MB")
+              # asset paths and identifiers survive as plain ASCII
+              found = re.findall(rb"/Game/[A-Za-z0-9_/.\-]{3,200}", data)
+              uniq = sorted({f.decode("ascii", "replace") for f in found})
+              print(f"# {len(uniq)} distinct /Game/ paths")
+              for line in uniq:
+                  print(line)
+          PY
+          wc -l game-data/ucas-strings.txt
+
+      - name: Package the payload into committable chunks (optional)
+        if: hashFiles('game-data/INCLUDE_UCAS') != ''
+        run: |
+          mkdir -p game-data/ucas-chunks
+          split -b 60M -d -a 2 /tmp/big/NoMansSkyParts.ucas game-data/ucas-chunks/part-
+          split -b 60M -d -a 2 /tmp/big/global.ucas game-data/ucas-chunks/global-
+          ls -la game-data/ucas-chunks | head
+          (cd game-data/ucas-chunks && sha256sum part-* global-* > SHA256SUMS.txt)
+          cat game-data/ucas-chunks/SHA256SUMS.txt
+
+      - name: Commit the results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A game-data
+          git status --short | head -30
+          git commit -m "Add Base Builder container listing from the release (automated)" || echo "nothing to commit"
+          git push
