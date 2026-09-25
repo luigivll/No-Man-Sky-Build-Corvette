@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import BlueprintSheet from "@/components/BlueprintSheet";
+import LatticeView from "@/components/LatticeView";
 import { Icon } from "@/components/Icon";
 import { blueprintBySlug, blueprints } from "@/lib/data";
 
@@ -46,6 +47,18 @@ export default async function BlueprintDetailPage({
       </div>
 
       <BlueprintSheet blueprint={blueprint} />
+
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-display text-xs uppercase tracking-[0.2em] text-emerald-300">
+            Real-mesh build
+          </h2>
+          <Link href={`/lattice/${blueprint.slug}`} className="font-mono text-[11px] text-cyan-300/80 underline decoration-dotted">
+            full lattice sheet →
+          </Link>
+        </div>
+        <LatticeView slug={blueprint.slug} height={520} />
+      </section>
 
       <section className="space-y-3">
         <h2 className="font-display text-xs uppercase tracking-[0.2em] text-cyan-300">

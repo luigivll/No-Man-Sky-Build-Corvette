@@ -39,8 +39,8 @@ const MODES = [
     tagline: "Recreate legendary ships from the parts pool.",
     bullets: [
       `${blueprints.length} verified part lists from sci-fi classics`,
+      "Every one rebuilt from the real 589-mesh corvette pack",
       "Exact modules, quantities, unit cost and build tips",
-      "Load any blueprint straight into the builder",
     ],
     accent: "#a855f7",
     icon: "Ship",

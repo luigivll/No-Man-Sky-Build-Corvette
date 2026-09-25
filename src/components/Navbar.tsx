@@ -15,7 +15,7 @@ const LINKS = [
   { href: "/assembly", label: "Assembly Manual", icon: "ClipboardList" },
   { href: "/parts", label: "Parts Codex", icon: "BookOpen" },
   { href: "/models", label: "Real Meshes", icon: "Boxes" },
-  { href: "/lattice", label: "Lattice", icon: "Atom" },
+  { href: "/lattice", label: "Lattice Builds", icon: "Atom" },
   { href: "/hangar", label: "My Hangar", icon: "Save" },
 ];
 
