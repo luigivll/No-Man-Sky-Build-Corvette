@@ -9,7 +9,7 @@
  */
 
 import { chainZ, type LatticePlacement } from "../lattice";
-import { atTip, deg, fin, hanging, pod, prong, put, row, span, spanPair, standing } from "./dsl";
+import { atTip, deg, fin, hanging, pod, prong, put, row, span, spanPair, standing, surfaceAt } from "./dsl";
 import { compact, recipeFor } from "./recipe";
 import type { Blueprint } from "../types";
 import type { NamedRecipe } from "../fleet";
@@ -31,14 +31,17 @@ export function millenniumFalcon(bp: Blueprint): NamedRecipe {
   for (let z = -R; z <= R + 1e-6; z += pitch) {
     const half = Math.sqrt(Math.max(0, R * R - z * z));
     for (let x = -half; x <= half + 1e-6; x += pitch) {
-      // taper the outer rings so the edge of the disc steps down instead of
-      // ending in a square shoulder
+      // Half-metre plates on a half-metre pitch would BUTT exactly, and butting
+      // plates show every seam and bevel: the saucer came out looking like a
+      // radiator grille. Overlapping them ~15% welds the disc into one surface
+      // and the outline is still the circle, because the cells are placed on the
+      // circle in the first place.
       const r = Math.hypot(x, z) / R;
-      const scale = r > 0.9 ? 0.42 : r > 0.7 ? 0.46 : 0.5;
+      const scale = r > 0.92 ? 0.5 : 0.58;
       parts.push(
-        put("B_CON_5", [Number(x.toFixed(2)), r > 0.9 ? -0.16 : 0, Number(z.toFixed(2))], {
+        put("B_CON_5", [Number(x.toFixed(2)), 0, Number(z.toFixed(2))], {
           scale,
-          role: r > 0.9 ? "rim plate" : "saucer plate",
+          role: r > 0.92 ? "rim plate" : "saucer plate",
         }),
       );
     }
@@ -104,36 +107,63 @@ export function starDestroyer(bp: Blueprint): NamedRecipe {
     ]),
   );
 
-  // the wedge, built as three steps of flat plating that widen as they run aft:
-  // one big diagonal plate reads as fins, three read as a hull
-  parts.push(
-    ...spanPair("B_WNG_Q", [0.3, 0, 2.4], [2.9, 0, -0.6], { scale: 0.4, role: "hull plate fore" }),
-    ...spanPair("B_WNG_Q", [0.3, 0, 0.4], [4.2, 0, -2.6], { scale: 0.4, role: "hull plate mid" }),
-    ...spanPair("B_WNG_Q", [0.3, 0, -1.6], [5.6, 0, -5.4], { scale: 0.4, role: "hull plate aft" }),
-    ...spanPair("B_WNG_R", [0.4, -0.02, 1.8], [3.0, -0.02, -0.9], { scale: 0.3, role: "hull edge" }),
-  );
+  // The wedge: rows of connector cells across the hull, each row wider than the
+  // last. Four approaches were tried and three are recorded here because the
+  // failures are the informative part:
+  //
+  //   fanned wing plates   -> fins. The game wings are thin perforated panels;
+  //                           stretched to five units their spars become spikes
+  //                           and their cut-outs become holes.
+  //   tiled grid cells     -> a radiator grille. Every cell carries its own
+  //                           bevel, so the eye counts crates, not a hull.
+  //   habitation modules   -> those are INTERIOR parts: no roof, so the rows
+  //                           render as open corridors.
+  //
+  // Connector cells are solid boxes with flat tops, and overlapping them by
+  // about a third buries the bevels. Rows of different widths then step from the
+  // bow to the wide stern, which is what the Workshop would let you lay.
+  const ROWS: [number, number, number][] = [
+    // [cells across the row, z, scale]
+    [2, 2.3, 0.8],
+    [4, 1.0, 1],
+    [6, -0.6, 1],
+    [8, -2.4, 1],
+    [8, -4.1, 1],
+  ];
+  for (const [across, z, sc] of ROWS) {
+    for (let i = 0; i < across; i++) {
+      const x = (i - (across - 1) / 2) * (0.95 * sc);
+      parts.push(put("B_CON_5", [Number(x.toFixed(2)), 0, z], { scale: sc, role: "hull plate" }));
+    }
+  }
 
   // bridge tower with its two sensor globes, near the stern
   const tower: LatticePlacement[] = [];
-  tower.push(standing("B_ALK_B", parts, 0, -5.4, { role: "tower base" }) as LatticePlacement);
-  tower.push(standing("B_HAB1_A", [...parts, ...tower], 0, -5.4, { role: "tower deck" }) as LatticePlacement);
+  const TOWER_Z = -4.4;
+  tower.push(standing("B_ALK_B", parts, 0, TOWER_Z, { role: "tower base" }) as LatticePlacement);
   tower.push(
-    standing("B_HAB1_C", [...parts, ...tower], 0, -5.4, { role: "bridge" }) as LatticePlacement,
+    standing("B_HAB1_A", [...parts, ...tower], 0, TOWER_Z, { role: "tower deck" }) as LatticePlacement,
   );
   tower.push(
-    put("B_SHL_C", [0.55, 1.6, -5.4], { role: "sensor globe stbd" }),
-    put("B_SHL_C", [-0.55, 1.6, -5.4], { mirror: true, role: "sensor globe port" }),
-    put("B_SHL_A", [0, 1.75, -5.4], { role: "comms mast" }),
+    standing("B_HAB1_C", [...parts, ...tower], 0, TOWER_Z, { role: "bridge" }) as LatticePlacement,
+  );
+  const towerTop = surfaceAt([...parts, ...tower], -0.55, TOWER_Z);
+  tower.push(
+    put("B_SHL_C", [0.55, towerTop + 0.05, TOWER_Z], { role: "sensor globe stbd" }),
+    put("B_SHL_C", [-0.55, towerTop + 0.05, TOWER_Z], { mirror: true, role: "sensor globe port" }),
+    put("B_SHL_A", [0, towerTop + 0.05, TOWER_Z], { role: "comms mast" }),
   );
   parts.push(...compact(tower));
 
   // three big ion engines across the stern
   parts.push(
-    ...row("B_TRU_C", [-1.1, 0, 1.1], 0, -7.2, { role: "ion engine" }),
-    ...row("B_TRU_A", [-2.2, 2.2], 0, -7.0, { role: "ion engine" }),
-    put("B_TUR_F", [0, 0.45, 3.4], { role: "bow turbolaser" }),
-    put("B_TUR_B", [0.6, 0.4, 1.6], { role: "turbolaser" }),
-    put("B_TUR_B", [-0.6, 0.4, 1.6], { mirror: true, role: "turbolaser" }),
+    ...row("B_TRU_C", [-1.9, 0, 1.9], 0, -4.0, { role: "ion engine" }),
+    ...row("B_TRU_A", [-3.1, 3.1], 0, -4.0, { role: "ion engine" }),
+    hanging("B_TUR_F", parts, 0, 1.9, { role: "bow turbolaser" }) as LatticePlacement,
+    ...compact([
+      standing("B_TUR_B", parts, 0.95, 1.6, { role: "turbolaser" }),
+      standing("B_TUR_B", parts, -0.95, 1.6, { mirror: true, role: "turbolaser" }),
+    ]),
   );
 
   return recipeFor(bp, {
