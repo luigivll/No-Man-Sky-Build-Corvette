@@ -1,0 +1,277 @@
+### release assets
+global.ucas	1655856
+global.utoc	506
+NoMansSkyParts.pak	9800115
+NoMansSkyParts.ucas	307415744
+NoMansSkyParts.utoc	1062700
+
+==================================================
+
+== NoMansSkyParts.pak  (9.3 MB, pak)
+   version: 12 (unknown)
+   key guid: 00000000000000000000000000000000
+   - index is AES encrypted - the file list cannot be read without the key
+   63 path(s) found:
+     IOW/Game/0<
+     <Location>/Engine/Content/Slate/Fonts/</Location>
+     <LicenseFolder>/Engine/Source/ThirdParty/Licenses/Noto_License.txt</LicenseFolder>
+     <LicenseFolder>/Engine/Source/ThirdParty/Licenses/ROBOTO_License.txt</LicenseFolder>
+     Engine/Content/Localization/Engine/
+     Engine/Content/Localization/Engine/en/
+     [/Script/Engine.MaterialExpressionBlend]
+     [/Script/Engine.RuntimeOptionsBase]
+     /Script/Engine.TextureLODSettings=GlobalDefaults DeviceProfile
+     [/Script/UnrealEd.ProjectPackagingSettings]
+     [/Script/Engine.RPCDoSDetectionConfig]
+     [/Script/OnlineSubsystemEOS.EOSSettings]
+     +/Script/CinemcCamera.Settings
+     +Class=(OldName="/Script/EditoringUtilities.BluyAc",New.PlacedUBase")StructMeshionSetsStac.sOonJoinsrgeCreateProxyEnumollishapeTypeType")
+     [/Script/EngineSettings.ConsoleSettings]
+     +Packag=(OldName="/Script/PresetEditor",NewTool)Class.UserSettings.ProjectAssetStruct.InteractiveDefintioniStsCollecForySubsystemSubsystem")
+     +FunctionRedirects=(OldName="/Script/DjMonkeyUtils.DjMonkeyUtilsBlueprintLibrary.LoadGlbModelFromDisk",NewName="/Script/DjMonkey_gltfRuntime.DjMonkeyGltfRuntimeBlueprintLibrary.LoadGlbModelFromDisk")
+     +ClassRedirects=(OldName="/Script/DjMonkeyUtils.DjMonkeyUtilsShowSwitchKeyboardAsync",NewName="/Script/DjMonkey_Switch.DjMonkeyUtilsShowSwitchKeyboardAsync")
+     +FunctionRedirects=(OldName="/Script/DjMonkeyUtils.DjMonkeyUtilsShowSwitchKeyboardAsync.ShowSwitchKeyboard",NewName="/Script/DjMonkey_Switch.DjMonkeyUtilsShowSwitchKeyboardAsync.ShowSwitchKeyboard")
+     +Class=(OldName="/Script/DjMonkeyUtils.BlueprintLibrary",New_)Function.ExplFolderAtPathLoadImageFromDiskGetCacheDoesExistSaveTexture2DAsJpegCachedImage")
+     [/Script/Engine.Engine]
+     +FunctionRedirects=(OldName="/Script/LowEntryExtendedStandardLibrary.LowEntryExtendedStandardLibrary.Divide_Vector2dVector2d",NewName="/Script/Engine.KismetMathLibrary.Divide_Vector2DVector2D")
+     VSM_MJobQueufl
+     SK_fG
+     >yT_
+     If|T_
+     T_8W)%
+     gT_Z
+     )cT_9+
+     6=KT_
+     95mtTTTTTTTTTT_r
+     ^T_U_.b]d
+     ST_ND
+     U2T_
+     JCG&DataT_RowStructEy
+     ST_A
+     T_2C
+     LOCTEXT_NAMESPACE
+     ?H/LANDSCAPENITE_HES_NEED_TO_BE_REBUILT_FMT
+     >=kkT_Zero
+     -/T_p
+     TT_Average
+     %_CLUSTERS_NEED_TO_BE_REBUILT_FMT
+     lcT_
+     2_T_G
+     T_cJf
+     .FmT_
+     T_U'ebC
+     T_]h
+     T_=Q3t
+     volT_
+     <ST_
+     UT_9SiY
+     T_5_^T
+     E^qT_a
+     guT_Qjc
+     RjY}T_`]
+     QwT_UVR
+     )cT_1'
+     xxT_
+     WY^TT_W
+     6?T_bu
+     9JT_
+==================================================
+
+== NoMansSkyParts.utoc  (1.0 MB, utoc)
+   version: 8 (IoStore)
+   - IoStore version 8
+   - toc header size 144, 9735 chunks
+   - block entries 29676 x 12 B, block size 64 KiB
+   - compression methods 1
+   - directory index 239130 B
+   - container id 98af9e255f95ffa4
+   - flags 0x09
+   - perfect hash seeds 4868, chunks without hash 4294967295
+   463 path(s) found:
+     SM_SkySphere.uasset
+     SM_TranslationArrow.ubulk
+     SM_TranslationArrow.uasset
+     SM_Cube.uasset
+     SM_Cube.ubulk
+     SM_Sphere.uasset
+     SM_TranslationPlane.uasset
+     SM_ScaleArrow.uasset
+     SM_RotationPlane.uasset
+     SM_RotationPlane.ubulk
+     SM_ScaleArrow.ubulk
+     SM_CurvePoint.uasset
+     SM_Sphere.ubulk
+     SM_TranslationPlane.ubulk
+     SM_SkySphere.ubulk
+     SM_Pipe.uasset
+     SM_CurvePoint.ubulk
+     SM_Pipe.ubulk
+     T_WALL_WIN1.uasset
+     T_CHEV_WIN2.uasset
+     SET_S_TOWER.uasset
+     T_ROOF0.uasset
+     F_WALLT_WIN3.ubulk
+     F_WALLT_WIN3.uasset
+     T_WALL_H.uasset
+     T_WALL_H.ubulk
+     T_RAMP_H.uasset
+     T_White.uasset
+     T_CHEV_WIN2.ubulk
+     T_ARCH_H.uasset
+     T_WALL.uasset
+     T_Icon_House.uasset
+     T_ROOF_E_CAP.uasset
+     B_STR_T_NWTB2.uasset
+     B_PALLET_BRICK.ubulk
+     T_WALL_Q1.uasset
+     BP_Plugs_BubblePipeT_to_BubblePipeT.uasset
+     T_ARCHM_H.ubulk
+     T_ARCHM_H.uasset
+     T_WALL_Q_H1.uasset
+     B_WALLT_WIN2.ubulk
+     SET_CLASS_A.uasset
+     SET_CLASS_A.ubulk
+     T_Icon_Onlockl2.uasset
+     T_Cloud_on.uasset
+     T_DOORB0_H.ubulk
+     T_White.ubulk
+     T_ROOF_M_CAP.uasset
+     SET_FISHPOND.uasset
+     B_STR_T_NETB.ubulk
+     T_Icon_Power.uasset
+     B_WALLT_WIN1.ubulk
+     T_TRIFLOOR_Q.uasset
+     S_BUCKET_S.uasset
+     SET_MAYORTERM.uasset
+     B_WALLT_WIN0.uasset
+     T_ToolGrid_Icon.uasset
+     T_Default_Material_Grid_M.ubulk
+     SET_T_MONU_FA.ubulk
+     B_STR_T_NETB2.ubulk
+     T_TRIFLOOR_Q.ubulk
+     SET_T_MONU_FA.uasset
+     T_Part_Missing.uasset
+     T_Part_Missing.ubulk
+     T_ROOF_M_CAP_Glass.uasset
+     T_CHEV_DOOR.uasset
+     S_WALLT_WIN0.ubulk
+     T_Icon_Import.uasset
+     T_ROOF7.uasset
+     T_ROOF_E_Q.ubulk
+     T_Icon_Error.uasset
+     SET_CLASS_B.uasset
+     T_Default_Material_Grid_N.ubulk
+     T_WALLM_WIN0.ubulk
+     T_WALLM_WIN0.uasset
+     SET_MONUMENT.ubulk
+     T_WALLT_DIAGONA.ubulk
+     SET_MONUMENT.uasset
+     B_STR_T_NETB3.ubulk
+     T_RAMP_Q_TOP.ubulk
+     ... and 383 more
+==================================================
+
+== global.utoc  (0.0 MB, utoc)
+   version: 8 (IoStore)
+   - IoStore version 8
+   - toc header size 144, 1 chunks
+   - block entries 26 x 12 B, block size 64 KiB
+   - compression methods 0
+   - directory index 0 B
+   - container id ffffffffffffffff
+   - flags 0x00
+   - perfect hash seeds 1, chunks without hash 4294967295
+   no paths recovered
+==================================================
+
+== NoMansSkyParts.ucas  (293.2 MB, pak)
+   - no pak magic found - not an UnrealPak container
+   3762 path(s) found:
+     1GlowM_CurvePoint/Game/NMSBaseBuilder/Features/s/
+     ,NonePF_DXT5T_Icon_copy/Game/NMSBaseBuilder/Features/UI/
+     2C_BrightnessCurve/Game/NMSBaseBuilder/Features/UI/C_BrightnessCurve
+     4NonePF_B8G8R8A8T_ColorSelected/Game/NMSBaseBuilder/Features/s/
+     @NonePF_DXT5buildtab_decoration_copy/Game/NMSBaseBer/Features/UI/Imag
+     6NonePF_DXT5T_Icon_Comment/Game/NMSBaseBuilder/Features/UI/Imag
+     .NonePF_DXT5mirror/Game/NMSBaseBuilder/Features/UI/Imag
+     4NonePF_DXT5T_Icon_Close/Game/NMSBaseBuilder/Features/UI/Imag
+     9NonePF_DXT5T_Icon_Twitterpng/Game/NMSBaseBuilder/Features/UI/ImagT
+     5NonePF_DXT5T_Icon_Prefab/Game/NMSBaseBuilder/Features/UI/Imag
+     8NonePF_DXT5T_Icon_Translate/Game/NMSBaseBuilder/Features/UI/Imag
+     6NonePF_DXT5buildtab_basic/Game/NMSBaseBer/Features/UI/Imag
+     3NonePF_DXT5T_Icon_B/Game/NMSBaseBuilder/Features/UI/Imag
+     9NonePF_B8G8R8A8STATION33/Game/NMSBaseBuilder/Features/Colors/Thumbnails/
+     /NonePF_DXT1T_White/Game/NMSBaseBuilder/Features/Refence/
+     :NonePF_DXT5T_Icon_NMSSnapping/Game/BaseBuilder/Features/UI/Imag
+     7NonePF_DXT5T_Icon_Download/Game/NMSBaseBuilder/Features/UI/Images/
+     9NonePF_DXT5T_Icon_StatiExt/Game/NMSBaseBuilder/Features/UI/Imag
+     ?NonePF_B8G8R8A8FREIGHTERBASE11/Game/NMSBaseBuilder/Features/Colors/Thumbnails/
+     2NonePF_DXT5T_Cloud_on/Game/NMSBaseBuilder/Features/UI/Imag
+     4NonePF_DXT1T_Part_Missing/Game/NMSBaseBuilder/Features/
+     3NonePF_DXT5T_Icon_Open/Game/NMSBaseBuilder/Features/UI/Imag
+     9NonePF_DXT5T_Icon_Properties/Game/NMSBaseBuilder/FeaturUI/ImagT
+     8NonePositionOffset_3_0B2570464084A4865C232290DCB7B545RotationOffset_7_2C25F3974BFA41A1C5D7D39E57AA87F2StructPropertySMirrorCorrections/Game/NMSBaseBuilder/Features/Builder/SMirrorCorrections
+     -BlueprintTypeEngeGridLayoutNoneObjectPropertyHorizontalBoxSlotDefault__WBP_Part_CidgetTree/Game/NMSBaseBuilder/Features/UI/
+     5NonePF_DXT5U_BYTEBEATLINE/Game/NMSBaseBuilder/Features/UI/Icons/
+     3NonePF_DXT5T_Sort_Load/Game/NMSBaseBuilder/Features/UI/Imag
+     3NonePF_DXT5T_Icon_save/Game/NMSBaseBuilder/Features/UI/Imag
+     4BlueprintTypeDefaultSceneRootEngineNE1NE2NoneObjectPropertyBP_ShipGrid_C___GEN_VARIABLESCS_NodeSimpleConstructionScript/Game/NMSBaseBuilder/Features/FreeCra/
+     @NonePF_DXT5buildtab_structures_copy/Game/NMSBaseBer/Fea/UI/Imag
+     6NonePF_DXT5T_Icon_EyeOpen/Game/NMSBaseBuilder/Features/UI/Imag
+     4NonePF_DXT5T_Icon_Right/Game/NMSBaseBuilder/Features/UI/Imag
+     3NonePF_DXT5T_Icon_Hash/Game/NMSBaseBuilder/Features/UI/Imag
+     5NonePF_DXT5T_Icon_Legacy/Game/NMSBaseBuilder/Features/UI/Imag
+     3ArrayPropertyNamePropertyNoneVariantArray_4_434CC8E54CCEBDD3395BF2B909D2E8ABSVariantArray/Game/NMSBaseBuilder/Features/Builder/SVariantArray
+     6NonePF_DXT5T_Icon_BlueSky/Game/NMSBaseBuilder/Features/UI/Imag
+     3NonePF_DXT5T_Icon_Left/Game/NMSBaseBuilder/Features/UI/Imag
+     8NonePF_B8G8R8A8STATION6/Game/NMSBaseBuilder/Features/Colors/Thumbnails/
+     .NonePF_B8G8R8A8T_Grid/Game/NMSBaseBuilder/Materials/Textures/
+     7NonePF_DXT5T_Icon_Outliner/Game/NMSBaseBuildFeatures/UI/Imag
+     6NonePF_DXT5T_Icon_Package/Game/NMSBaseBuilder/Features/UI/Imag
+     FNonePF_DXT5buildtab_exoticdecoration_copy/Game/NMSBaseBer/Features/UI/Imag
+     9NonePF_DXT5T_ToolSphere_Icon/Game/NMSBaseBuilder/Features/UI/ImagT
+     6NonePF_DXT5T_Icon_Hotkeys/Game/NMSBaseBuilder/Features/UI/Imag
+     4NonePF_DXT5T_Icon_Build/Game/NMSBaseer/Features/UI/Imag
+     @NonePF_DXT5buildtab_fibreglass_copy/Game/NMSBaseBer/Features/UI/Imag
+     9NonePF_B8G8R8A8STATION32/Game/NMSBaseBuilder/Features/Colors/Thumbnails/
+     9NonePF_B8G8R8A8STATION35/Game/NMSBaseBuilder/Features/Colors/Thumbnails/
+     3NonePersistentBaseTypes_5_98F93DAA471E253ECAE885B10A42A51AStrPropertySBaseTypes/Game/NMSBaseBuilder/Features/SaveSystem/SBaseTypes
+     7NonePF_DXT5T_ToolGrid_Icon/Game/NMSBaseBuilder/Features/UI/Imag
+     8NonePF_DXT5T_Icon_ArrowDown/Game/NMSBaseBuilder/Features/UI/Imag
+     ?NonePF_B8G8R8A8FREIGHTERBASE13/Game/NMSBaseBuilder/Features/Colors/Thumbnails/
+     4NonePF_DXT5T_Icon_Power/Game/NMSBaseBuildFeatures/UI/Imag
+     ?NonePF_B8G8R8A8FREIGHTERBASE12/Game/NMSBaseBuilder/Features/Colors/Thumbnails/
+     >DifficultyPresetType_7_98F93DAA471E253ECAE885B10A42A51ANoneStrPropertySDifficultyPresetType/Game/NMSBaseBuilder/Features/SaveSystem/SDifficultyPresetType
+     6NonePF_DXT5T_Icon_Monkey2/Game/NMSBaseBuilder/Features/UI/Imag
+     3NonePF_DXT5T_Icon_Menu/Game/NMSBaseBuilder/Features/UI/Imag
+     9NonePF_B8G8R8A8STATION34/Game/NMSBaseBuilder/Features/Colors/Thumbnails/
+     2NonePF_DXT5T_Icon_Pop/Game/NMSBaseBuilder/Features/UI/Imag
+     6NonePF_DXT5T_Icon_Palette/Game/NMSBaseBuilder/Features/UI/Imag
+     9NonePF_DXT5T_Icon_DeployTech/Game/NMSBaseBuilder/Features/UI/ImagT
+     4NonePF_DXT5T_Icon_Tools/Game/NMSBaseBuilder/Features/UI/Imag
+     5ESelectableType::_MAX:NewEnumerator01234560123456/Game/NMSBaseBuilder/Features/
+     5BlueprintTypeEngineNoneOutlinerCollectionStructPropertyO_OutlinerItem_CDefault__O_OutlinerItem_C/Game/NMSBaseBuilder/Features/Outliner/O_OutlinerItem
+     4/Game/NMSBaseBuilder/Features/Outliner/SOutlinerItem
+     2Colour_2_F5FEE0C241ACC2E4E5805D9C3B80355BMaterial_4_1D2813094CE5F1C582EACFBE773377DDNoneStrPropertySColorMapping/Game/NMSBaseBuilder/Features/Colors/SColorMapping
+     9NonePF_DXT5T_Icon_LocalSpace/Game/NMSBaseBuilder/Features/UI/ImagT
+     >NonePF_DXT5buildtab_ers_copy/Game/NMSBaseB/Features/UI/Imag
+     (CustomStenicilValueOutlineOpacityParamWidthM_/Game/NMSBaseBuilder/Materials/
+     )CustomStenicilValueOutlineOpacityParamRefractionDepthBiasWidthMI_Outline/Game/NMSBaseBuilder/Materials/MI_Outline
+     (/Game/NMSBaseBuilder/Materials/M_Outline
+     >BlueprintTypeEngineNoneSizeBoxSizeBoxSlotTextBlockDefault__WBP_MipleSelecon_CidgetTree/Game/NMSBaseBuilder/Features/Properti
+     1NonePF_DXT5T_Sort_AZ/Game/NMSBaseBuilder/Features/UI/Imag
+     <NonePF_DXT5T_Icon_TranslateSnap/Game/NMSBaseBuilder/Features/UI/Imag
+     3NonePF_DXT5T_Icon_Ball/Game/NMSBaseBuilder/Features/UI/Imag
+     3NonePF_DXT5ABAND_BARREL/Game/NMSBaseBuilder/Features/UI/Icons/
+     =BlueprintTypeEngineNoneBP_SnapPlugComponent_CDefault__BP_SnapPlugComponent_C/Game/NMSBaseBuilder/Features/SnapPoints/BP_SnapPlugComponent
+     3NonePF_DXT5T_Icon_Edit/Game/NMSBaseBuilder/Features/UI/Imag
+     1NonePF_DXT5U_PIPELINE/Game/NMSBaseBuilder/Features/UI/Icons/
+     2MI_CurvePoint/Game/NMSBaseBuilder/Features/Curves/MI_CurvePoint
+     ... and 3682 more
+==================================================
+
+== global.ucas  (1.6 MB, pak)
+   - no pak magic found - not an UnrealPak container
+   2 path(s) found:
+     6JT_U0t
+     T_/9

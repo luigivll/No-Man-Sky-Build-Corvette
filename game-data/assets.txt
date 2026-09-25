@@ -1,0 +1,5 @@
+global.ucas	1655856
+global.utoc	506
+NoMansSkyParts.pak	9800115
+NoMansSkyParts.ucas	307415744
+NoMansSkyParts.utoc	1062700
