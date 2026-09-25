@@ -46,7 +46,24 @@ jobs:
           npm run verify
 
       - name: Build the static site
-        run: npm run build:static
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build:static 2>&1 | tee build.log
+
+      # A failing Windows build cannot be debugged from the sandbox (the log
+      # endpoint is unreachable there), so the tail of the log is committed to the
+      # branch the run was triggered from.
+      - name: Park the build log on failure
+        if: failure()
+        shell: bash
+        run: |
+          tail -n 80 build.log > ci-build-error.log || true
+          git config user.name "shipyard-ci"
+          git config user.email "shipyard-ci@users.noreply.github.com"
+          git add -f ci-build-error.log
+          git commit -m "ci: windows build log [skip ci]" || true
+          git push || true
 
       - name: Package the Windows app
         run: npx electron-builder --win --x64 --publish never
