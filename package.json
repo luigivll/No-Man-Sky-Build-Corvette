@@ -2,7 +2,7 @@
   "name": "nms-corvette-shipyard",
   "version": "1.0.0",
   "private": true,
-  "description": "NMS Corvette Shipyard \u2014 builder, randomizer and pop-culture blueprint companion for No Man's Sky (Voyagers update).",
+  "description": "NMS Corvette Shipyard — builder, randomizer and pop-culture blueprint companion for No Man's Sky (Voyagers update).",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -58,6 +58,12 @@
       "target": [
         {
           "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
           "arch": [
             "x64"
           ]
