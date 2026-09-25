@@ -27,8 +27,17 @@ if (existsSync(out)) {
   console.log("  cleared out/");
 }
 
-const isWindows = process.platform === "win32";
-const child = spawn(isWindows ? "npx.cmd" : "npx", ["next", "build"], {
+/**
+ * Launch Next's own CLI with the Node that is already running this script.
+ *
+ * Not `npx`: on Windows that is `npx.cmd`, and Node 18.20+/20.12+/22 refuses to
+ * spawn a .cmd without `shell: true` (the CVE-2024-27980 fix), so the build died
+ * with `spawn EINVAL` on every Windows runner while working fine here. Going
+ * through `process.execPath` sidesteps the shell entirely — no .cmd, no quoting
+ * rules, no platform branch.
+ */
+const nextCli = join(root, "node_modules", "next", "dist", "bin", "next");
+const child = spawn(process.execPath, [nextCli, "build"], {
   cwd: root,
   stdio: "inherit",
   env: { ...process.env, STATIC_EXPORT: "1" },
