@@ -40,6 +40,12 @@ export interface LatticePlacement {
   yaw?: number;
   /** mirror about the YZ plane (port-side copy of a starboard asset) */
   mirror?: boolean;
+  /**
+   * Uniform scale about the snap point.  1 keeps the asset at true game size;
+   * iconics use it to stop, say, four full-size foils swallowing a short
+   * fuselage.  Everything (extent, bbox, plume position) follows.
+   */
+  scale?: number;
   /** label used by the manual / parts list */
   role?: string;
   /**
@@ -84,10 +90,14 @@ function lookup(assetId: string): PackedPart | null {
 }
 
 /** world-space bbox of a part once its transform is applied */
-export function placedBox(assetId: string, pos: V3, yaw = 0, mirror = false): Box | null {
+export function placedBox(assetId: string, pos: V3, yaw = 0, mirror = false, scale = 1): Box | null {
   const p = lookup(assetId);
   if (!p) return null;
-  const b = partBox(p);
+  const raw = partBox(p);
+  const b: Box = {
+    min: [raw.min[0] * scale, raw.min[1] * scale, raw.min[2] * scale],
+    max: [raw.max[0] * scale, raw.max[1] * scale, raw.max[2] * scale],
+  };
   const corners: V3[] = [];
   for (const cx of [b.min[0], b.max[0]]) {
     for (const cy of [b.min[1], b.max[1]]) {
@@ -164,10 +174,17 @@ export function chainZ(ids: string[], anchorZ = 0, opts: { y?: number; startInde
 export function flank(
   assetId: string,
   host: LatticePlacement,
-  opts: { side?: 1 | -1; overlap?: number; zOffset?: number; yOffset?: number; yaw?: number } = {},
+  opts: {
+    side?: 1 | -1;
+    overlap?: number;
+    zOffset?: number;
+    yOffset?: number;
+    yaw?: number;
+    scale?: number;
+  } = {},
 ): LatticePlacement {
-  const { side = 1, overlap = 0, zOffset = 0, yOffset = 0, yaw = 0 } = opts;
-  const hostBox = placedBox(host.assetId, host.pos, host.yaw ?? 0, host.mirror);
+  const { side = 1, overlap = 0, zOffset = 0, yOffset = 0, yaw = 0, scale = 1 } = opts;
+  const hostBox = placedBox(host.assetId, host.pos, host.yaw ?? 0, host.mirror, host.scale ?? 1);
   const child = lookup(assetId);
   const childMinX = child ? partBox(child).min[0] : 0;
   const edge = hostBox ? (side > 0 ? hostBox.max[0] : hostBox.min[0]) : 0.5 * side;
@@ -176,12 +193,14 @@ export function flank(
   // which local face that is depends on whether the asset reaches outboard from
   // its origin (wings: local x runs 0..1) or straddles it (boosters: -0.49..0.52).
   // Mirroring maps local +x onto world -x, so both cases reduce to childMinX.
-  const x = (side > 0 ? edge - childMinX : edge + childMinX) + overlap * side;
+  const scaledMinX = childMinX * scale;
+  const x = (side > 0 ? edge - scaledMinX : edge + scaledMinX) + overlap * side;
   return {
     assetId,
     pos: [x, host.pos[1] + yOffset, host.pos[2] + zOffset],
     yaw,
     mirror: side < 0,
+    scale,
     role: side < 0 ? "port" : "starboard",
   };
 }
@@ -193,7 +212,7 @@ export function stack(
   opts: { below?: boolean; xOffset?: number; zOffset?: number } = {},
 ): LatticePlacement {
   const { below = true, xOffset = 0, zOffset = 0 } = opts;
-  const hostBox = placedBox(host.assetId, host.pos, host.yaw ?? 0, host.mirror);
+  const hostBox = placedBox(host.assetId, host.pos, host.yaw ?? 0, host.mirror, host.scale ?? 1);
   const p = lookup(assetId);
   const childBox = p ? partBox(p) : { min: [0, 0, 0] as V3, max: [0, 0, 0] as V3 };
   let y = host.pos[1];
@@ -276,6 +295,7 @@ export function assembleCorvette(recipe: LatticeRecipe, opts: AssembleOptions = 
 
     const yaw = place.yaw ?? 0;
     const mirror = place.mirror ?? false;
+    const scale = place.scale ?? 1;
     const triCount = dec.indices.length / 3;
     const order = largestTris(dec.positions, dec.indices, triCount, maxTris);
 
@@ -304,11 +324,11 @@ export function assembleCorvette(recipe: LatticeRecipe, opts: AssembleOptions = 
       nz /= nl;
 
       for (const vi of [a, b, c]) {
-        const [rx, rz] = rotateY(dec.positions[vi], dec.positions[vi + 2], yaw);
+        const [rx, rz] = rotateY(dec.positions[vi] * scale, dec.positions[vi + 2] * scale, yaw);
         const wx = mirror ? -rx : rx;
         pts.push([
           place.pos[0] + wx,
-          place.pos[1] + dec.positions[vi + 1],
+          place.pos[1] + dec.positions[vi + 1] * scale,
           place.pos[2] + rz,
         ]);
       }
@@ -354,7 +374,7 @@ export function assembleCorvette(recipe: LatticeRecipe, opts: AssembleOptions = 
     // the nozzle without anyone having to hand-place it.
     const wantsPlume = place.plume !== false && (place.plume || place.assetId.startsWith("B_TRU"));
     if (wantsPlume) {
-      const own = placedBox(place.assetId, place.pos, yaw, mirror);
+      const own = placedBox(place.assetId, place.pos, yaw, mirror, scale);
       if (own) {
         const cfg = typeof place.plume === "object" ? place.plume : {};
         const spanX = own.max[0] - own.min[0];
