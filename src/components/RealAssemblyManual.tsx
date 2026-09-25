@@ -79,13 +79,21 @@ export default function RealAssemblyManual({
   const placed = recipe.parts.slice(0, step);
   const focus = placed[placed.length - 1];
 
+  // Triangle budget is shared across the ship, so the first modules are drawn in
+  // full detail and the later ones get cheaper as the hull fills up. A fixed
+  // per-part cap would make the first three steps as coarse as a 60-module
+  // dreadnought, and no cap at all would hand the browser 85k polygons.
+  const budget = Math.max(420, Math.min(2400, Math.round(14000 / Math.max(1, placed.length))));
+
   const mesh: ShipMesh | null = useMemo(() => {
     if (!ready || !placed.length) return null;
-    return assembleCorvette({ ...recipe, parts: placed }, { maxTrisPerPart: 520 });
+    return assembleCorvette({ ...recipe, parts: placed }, { maxTrisPerPart: budget });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, recipe, placed.length, step]);
+  }, [ready, recipe, placed.length, step, budget]);
 
-  // repaint the newest module so the step reads instantly
+  // Dim what is already bolted down and paint the newcomer in the ship's accent:
+  // on a pale hull an accent-coloured part alone is easy to lose, whereas a
+  // dimmed hull reads as "done" without stealing the step.
   const highlighted = useMemo(() => {
     if (!mesh) return null;
     const rgb = hexRgb(accent);
@@ -95,7 +103,18 @@ export default function RealAssemblyManual({
       parts: mesh.parts.map((p, i) =>
         i === lastIndex
           ? { ...p, faces: p.faces.map((f) => ({ ...f, rgb, opacity: 1 })) }
-          : p,
+          : {
+              ...p,
+              faces: p.faces.map((f) => ({
+                ...f,
+                rgb: [
+                  Math.round(f.rgb[0] * 0.46 + 18),
+                  Math.round(f.rgb[1] * 0.46 + 20),
+                  Math.round(f.rgb[2] * 0.46 + 24),
+                ] as [number, number, number],
+                opacity: Math.min(f.opacity ?? 1, 0.9),
+              })),
+            },
       ),
     };
   }, [mesh, accent]);
