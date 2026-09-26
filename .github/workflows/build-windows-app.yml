@@ -69,6 +69,27 @@ jobs:
           # branch has to be named explicitly
           git push origin "HEAD:refs/heads/$DIAG_BRANCH" || true
 
+      # The artifact names come from package.json, while the release name comes
+      # from the tag, so a tag without a version bump ships an installer labelled
+      # with the PREVIOUS version. Taking the version from the tag keeps the two
+      # in step without anybody having to remember.
+      - name: Sync the version with the tag
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#app-v}"
+          echo "tag $GITHUB_REF_NAME -> version $VERSION"
+          node -e "
+            const fs = require('fs');
+            const v = process.argv[1];
+            for (const f of ['package.json', 'package-lock.json']) {
+              const j = JSON.parse(fs.readFileSync(f, 'utf8'));
+              j.version = v;
+              if (j.packages && j.packages['']) j.packages[''].version = v;
+              fs.writeFileSync(f, JSON.stringify(j, null, 2) + '\n');
+            }
+          " "$VERSION"
+
       - name: Package the Windows app
         run: npx electron-builder --win --x64 --publish never
 
