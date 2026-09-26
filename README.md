@@ -9,6 +9,20 @@ Built with **Next.js (App Router) + React 19 + TypeScript + Tailwind CSS v4** an
 **lucide-react** icons. Dark, neon, space-terminal aesthetic. No backend, no
 database — everything runs client-side off two local JSON files.
 
+## Download the Windows app
+
+Double-click and go — no Node, no npm, no terminal:
+
+**[NMS.Corvette.Shipyard.Setup.1.0.8.exe](https://github.com/luigivll/No-Man-Sky-Build-Corvette/releases/latest/download/NMS.Corvette.Shipyard.Setup.1.0.8.exe)**
+(installer) ·
+**[NMS.Corvette.Shipyard-1.0.8-win.zip](https://github.com/luigivll/No-Man-Sky-Build-Corvette/releases/latest/download/NMS.Corvette.Shipyard-1.0.8-win.zip)**
+(portable, unpack and run `NMS Corvette Shipyard.exe`)
+
+Everything is bundled: the app, the 8.3 MB real-mesh pack and all 21 iconic builds.
+It runs offline. Built by CI from the `app-v1.0.8` tag — see the
+[releases page](https://github.com/luigivll/No-Man-Sky-Build-Corvette/releases)
+for every version.
+
 ### Real part meshes
 
 The ship previews no longer use stand-in boxes. `public/models/corvette.bin`
@@ -384,16 +398,21 @@ src/
     data.ts / types.ts    # typed access to the JSON databases
 ```
 
-## Desktop app (optional)
+## Desktop app
+
+The installer above is a packaged Electron build of exactly this app. To build it
+yourself instead:
 
 ```bash
-npm run app          # run it as a desktop window (Electron)
+npm install
+npm run app          # run it as a desktop window
 npm run app:build    # package a Windows .exe installer into release/
 ```
 
-`app:build` needs to run on your own machine - it downloads the Electron runtime
-and builds a Windows installer, which is not possible from the development
-sandbox. Both commands need `npm install` to have run once.
+CI builds and publishes the installer whenever a tag like `app-v1.0.9` is pushed
+(`.github/workflows/build-windows.yml`), taking the version from the tag itself.
+The previous notes here said `app:build` could not be done in the development
+sandbox; that is why the release is built on a Windows runner instead.
 
 ## Using your own game data
 
