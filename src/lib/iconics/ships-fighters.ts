@@ -354,51 +354,59 @@ export function sentinelInterceptor(bp: Blueprint): NamedRecipe {
 
   parts.push(
     ...chainZ(["B_COK_B", "B_CON_5", "B_HAB1_A", "B_STR_A_N", "B_TRU_G"]),
-    // the sentinel beak: a slim blade run out ahead of the cockpit
-    span("B_WNG_R", [0, -0.12, 0.85], [0, -0.12, 2.9], { scale: 0.16, role: "beak" }),
-    put("B_SHL_C", [0, 0.42, 0.4], { role: "eye" }),
+    // the sentinel's beak: a needle run out ahead of the cockpit, starting inside it
+    span("B_WNG_R", [0, -0.12, 0.7], [0, -0.12, 2.7], { scale: 0.13, role: "beak" }),
+    put("B_SHL_E", [0, 0.42, 0.35], { scale: 0.85, role: "eye" }),
   );
 
-  // Two slim outriggers, not boxes: one connector cell each, braced to the hull,
-  // carrying a long scythe blade that curves forward and up past the nose.
+  // Two outriggers: one cell each, braced to the hull twice, with the drive on the
+  // end. The scythes hang off them — thin (0.26 scale, so a 1.2 chord) and sweeping
+  // forward and up to frame the nose rather than lying across the hull.
   for (const side of [1, -1] as const) {
-    const px = side * 1.55;
+    const px = side * 1.6;
     parts.push(
-      put("B_CON_5", [px, 0.05, -1.0], { mirror: side < 0, role: "outrigger" }),
-      put("B_STR_A_N", [px, 0.05, -2.0], { mirror: side < 0, role: "outrigger cap" }),
-      put("B_TRU_A", [px, 0.05, -2.5], { mirror: side < 0, role: "outrigger thruster" }),
-      ...spanPair("B_STR_A_N", [0.45, 0.05, -0.55], [1.55, 0.05, -0.55], {
+      put("B_CON_5", [px, 0.05, -1.1], { mirror: side < 0, role: "outrigger" }),
+      put("B_STR_A_N", [px, 0.05, -2.15], { mirror: side < 0, role: "outrigger cap" }),
+      put("B_TRU_A", [px, 0.05, -2.6], { mirror: side < 0, role: "outrigger thruster" }),
+      ...spanPair("B_STR_A_N", [0.4, 0.05, -0.7], [1.6, 0.05, -0.7], {
         scale: 0.4,
         role: "outrigger brace",
       }),
-      ...spanPair("B_STR_A_N", [0.45, 0.05, -1.55], [1.55, 0.05, -1.55], {
+      ...spanPair("B_STR_A_N", [0.4, 0.05, -1.6], [1.6, 0.05, -1.6], {
         scale: 0.4,
         role: "outrigger brace",
       }),
     );
-    const scythe = span("B_WNG_R", [px, 0.2, -1.2], [px + side * 1.1, 1.5, 2.2], {
-      scale: 0.42,
-      mirror: side < 0,
-      role: "scythe blade",
-    });
+
+    // The scythe: root at the outrigger, tip well forward and high, canted out.
+    // Anchor the scythe level with the NOSE, not amidships: `span` keeps the
+    // blade's chord parallel to the hull's z axis, so a root that far aft lies
+    // across the hull like a panel instead of sweeping forward.
+    // The scythes rake up and OUT from the nose. `span` keeps a blade's chord
+    // parallel to the hull's z axis, so a purely fore-and-aft sweep would lie flat
+    // across the hull; raking them outboard is both what the ship does and what
+    // this engine can express.
+    const root: V3 = [px, 0.15, 0.35];
+    const tipPointTarget: V3 = [px + side * 1.25, 1.45, 0.35];
+    const scythe = span("B_WNG_R", root, tipPointTarget, { scale: 0.26, mirror: side < 0, role: "scythe blade" });
     parts.push(scythe);
-    const tip = atTip(scythe, [side > 0 ? 1 : -1, 1, 1], 0.35);
+    const tip = atTip(scythe, [side > 0 ? 1 : -1, 1, 1], 0.3);
     if (tip) {
       parts.push(
-        put("B_TUR_A", [tip[0], tip[1], tip[2] + 0.3], { mirror: side < 0, role: "blade cannon" }),
+        put("B_TUR_A", [tip[0], tip[1], tip[2] + 0.25], { mirror: side < 0, role: "blade cannon" }),
       );
     }
   }
 
   // crest blade standing on the spine, behind the cockpit
-  parts.push(...compact([fin("B_WNG_K", parts, 0, -1.3, { scale: 0.45, role: "crest" })]));
+  parts.push(...compact([fin("B_WNG_K", parts, 0, -1.4, { scale: 0.4, role: "crest" })]));
 
   return recipeFor(bp, {
     parts: compact(parts),
-    view: { yaw: 0.5, pitch: -0.22, zoom: 1 },
-    paint: { hull: "#4c5560", hullDark: "#181f26", emissive: "#5ef2b0", glow: 0.85 },
+    view: { yaw: 0.42, pitch: -0.24, zoom: 1 },
+    paint: { hull: "#46505c", hullDark: "#151c23", emissive: "#5ef2b0", glow: 0.85 },
     blurb:
-      "An in-game Sentinel scaled up: a slim beak, a crest blade, two braced outriggers and the long forward-curving scythes it hunts with.",
+      "An in-game Sentinel scaled up: a needle beak, a crest blade, two braced outriggers and the thin forward-curving scythes it hunts with.",
   });
 }
 
