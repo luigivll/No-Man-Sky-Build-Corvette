@@ -77,7 +77,11 @@ catalogue's hull families, and each carries the camera it wants to be seen from
 
 A contact audit across all 21 — every module's box must overlap a neighbour's by
 at least a 0.10 tolerance — reports **zero orphaned modules**. Renders of all 21
-are in `docs/img/iconics/`.
+are in `docs/img/iconics/`, and the same set is browsable in the app: `/lattice`
+is the index, `/lattice/<slug>` one ship with its snap-point table, and
+`/assembly/<slug>` the step-by-step walkthrough built from the same recipe.
+
+![All 21 iconics, drawn from real corvette parts](docs/img/iconics/contact-sheet.png)
 
 ![Lattice prototype](docs/img/corvette-lattice-hero.png)
 
@@ -138,6 +142,26 @@ npm run render:gallery # rasterise ALL blueprints in their own hull styles
 > 0.000 units across all 20 blueprints and all 6 hull families.
 
 ---
+
+## Checks
+
+Everything below runs offline against the committed mesh pack, and the last four
+need nothing but Node:
+
+```bash
+npm run typecheck                          # tsc --noEmit
+npm run lint                               # eslint
+npm run verify                             # data invariants (costs, categories, ids)
+npm run smoke   --prefix . 2>/dev/null || npx tsx --tsconfig tsconfig.json scripts/tools/smoke.ts
+npx tsx --tsconfig tsconfig.json scripts/tools/audit.ts     # nothing floats, 21 ships
+npx tsx --tsconfig tsconfig.json scripts/tools/all.ts       # re-render every ship
+python3 scripts/tools/render-all.py                         # ...and its PNGs + sheet
+```
+
+`smoke.ts` is the one that answers "is it all working": it compiles all 21
+blueprints, assembles them from the real pack, projects them the way the browser
+viewer does, and asserts each ship has geometry, a sane envelope, a triangle
+budget the DOM can carry, an asset behind every part, and engine trails.
 
 ## What's inside
 

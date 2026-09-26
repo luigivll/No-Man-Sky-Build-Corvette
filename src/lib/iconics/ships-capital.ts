@@ -22,26 +22,42 @@ import type { V3 } from "../render3d";
 export function millenniumFalcon(bp: Blueprint): NamedRecipe {
   const parts: LatticePlacement[] = [];
 
-  // The pack has no round part at all — the roundest thing in it is a dome — so
-  // the YT-1300 disc is a MOSAIC: half-metre cells laid on a hex grid and kept
-  // only where they fall inside the circle. The silhouette is what makes the
-  // saucer read, and the silhouette is the grid's outline.
-  const R = 2.1;
-  const pitch = 0.5;
-  for (let z = -R; z <= R + 1e-6; z += pitch) {
-    const half = Math.sqrt(Math.max(0, R * R - z * z));
-    for (let x = -half; x <= half + 1e-6; x += pitch) {
-      // Half-metre plates on a half-metre pitch would BUTT exactly, and butting
-      // plates show every seam and bevel: the saucer came out looking like a
-      // radiator grille. Overlapping them ~15% welds the disc into one surface
-      // and the outline is still the circle, because the cells are placed on the
-      // circle in the first place.
-      const r = Math.hypot(x, z) / R;
-      const scale = r > 0.92 ? 0.5 : 0.58;
+  // There is no round part in the pack — the roundest thing is a dome — so the
+  // YT-1300 disc is PANELLED: five smooth planks running fore-and-aft, each
+  // trimmed to the circle's own chord. A mosaic of half-metre cells was tried
+  // first and read as a radiator grille, because at that scale each cell's bevel
+  // is as big as the cell itself. B_WNG_R is the flattest thing in the pack (0.42
+  // thick against 4.53 long), so it makes hull panelling rather than crates.
+  // B_WNG_R already runs fore-and-aft (4.53 of chord against 1.30 of span), which
+  // is exactly the plank this needs: it is placed at its own scale so the span
+  // never has to be stretched, and each plank is trimmed to its own chord of the
+  // circle. Stretching it instead turned the planks into giant triangles.
+  // There is nothing round in the pack, so the disc is a MOSAIC of cells, and two
+  // earlier attempts explain the numbers:
+  //
+  //   cells at 0.5 scale on a 0.5 pitch  -> they butt, every bevel shows, and the
+  //                                         saucer came out a radiator grille.
+  //   wing blades as planks              -> B_WNG_R is a 4.53 x 1.30 blade with a
+  //                                         curved leading edge: scaled up it is a
+  //                                         sail, not a plank.
+  //
+  // Cells at TRUE size on a 0.6 pitch is the one that works: each cell overlaps its
+  // neighbours by ~40%, so the bevels are buried inside the next cell and the union
+  // reads as one continuous deck whose outline is the circle.
+  const R = 2.35;
+  const PITCH = 0.55;
+  let band = 0;
+  for (let z = -R; z <= R + 1e-6; z += PITCH, band++) {
+    // Staggered rows (every other one shifted half a pitch) are what round the
+    // outline off: the boundary then steps in half-cells instead of whole ones, and
+    // the disc stops looking like a rounded square.
+    const x0 = -R + (band % 2 ? PITCH / 2 : 0);
+    for (let x = x0; x <= R + 1e-6; x += PITCH) {
+      const r = Math.hypot(x, z);
+      if (r > R) continue;
       parts.push(
         put("B_CON_5", [Number(x.toFixed(2)), 0, Number(z.toFixed(2))], {
-          scale,
-          role: r > 0.92 ? "rim plate" : "saucer plate",
+          role: r > R - 0.7 ? "rim plate" : "saucer plate",
         }),
       );
     }
@@ -122,18 +138,25 @@ export function starDestroyer(bp: Blueprint): NamedRecipe {
   // Connector cells are solid boxes with flat tops, and overlapping them by
   // about a third buries the bevels. Rows of different widths then step from the
   // bow to the wide stern, which is what the Workshop would let you lay.
-  const ROWS: [number, number, number][] = [
-    // [cells across the row, z, scale]
-    [2, 2.3, 0.8],
-    [4, 1.0, 1],
-    [6, -0.6, 1],
-    [8, -2.4, 1],
-    [8, -4.1, 1],
+  // The rows have to overlap on BOTH axes. At a 1.3-1.8 z-pitch with one-unit
+  // cells the gaps between rows read as black stripes and the wedge came out a
+  // radiator grille; at 0.9 it is a single surface, and the width still steps.
+  const ROWS: [number, number][] = [
+    // [cells across the row, z]
+    [2, 2.3],
+    [4, 1.4],
+    [4, 0.5],
+    [6, -0.4],
+    [6, -1.3],
+    [8, -2.2],
+    [8, -3.1],
+    [10, -4.0],
+    [10, -4.9],
   ];
-  for (const [across, z, sc] of ROWS) {
+  for (const [across, z] of ROWS) {
     for (let i = 0; i < across; i++) {
-      const x = (i - (across - 1) / 2) * (0.95 * sc);
-      parts.push(put("B_CON_5", [Number(x.toFixed(2)), 0, z], { scale: sc, role: "hull plate" }));
+      const x = (i - (across - 1) / 2) * 0.9;
+      parts.push(put("B_CON_5", [Number(x.toFixed(2)), 0, z], { role: "hull plate" }));
     }
   }
 
