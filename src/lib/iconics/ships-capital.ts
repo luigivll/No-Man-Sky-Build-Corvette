@@ -44,39 +44,50 @@ export function millenniumFalcon(bp: Blueprint): NamedRecipe {
   // Cells at TRUE size on a 0.6 pitch is the one that works: each cell overlaps its
   // neighbours by ~40%, so the bevels are buried inside the next cell and the union
   // reads as one continuous deck whose outline is the circle.
-  const R = 2.35;
-  const PITCH = 0.55;
-  let band = 0;
-  for (let z = -R; z <= R + 1e-6; z += PITCH, band++) {
-    // Staggered rows (every other one shifted half a pitch) are what round the
-    // outline off: the boundary then steps in half-cells instead of whole ones, and
-    // the disc stops looking like a rounded square.
-    const x0 = -R + (band % 2 ? PITCH / 2 : 0);
-    for (let x = x0; x <= R + 1e-6; x += PITCH) {
-      const r = Math.hypot(x, z);
-      if (r > R) continue;
-      parts.push(
-        put("B_CON_5", [Number(x.toFixed(2)), 0, Number(z.toFixed(2))], {
-          role: r > R - 0.7 ? "rim plate" : "saucer plate",
-        }),
-      );
+  const R = 2.1;
+  const PITCH = 0.62; // ~38% overlap: each cell's bevel is buried inside the next
+  const NOTCH_Z = 0.5; // the front of the disc is open between the mandibles
+  const NOTCH_X = 0.95;
+
+  const deckOf = (radius: number, y: number, scale: number, role: string, notch: boolean) => {
+    let band = 0;
+    for (let z = -radius; z <= radius + 1e-6; z += PITCH, band++) {
+      const x0 = -radius + (band % 2 ? PITCH / 2 : 0);
+      for (let x = x0; x <= radius + 1e-6; x += PITCH) {
+        const r = Math.hypot(x, z);
+        if (r > radius) continue;
+        // the mandible gap: the disc opens up at the front centre
+        if (notch && z > NOTCH_Z && Math.abs(x) < NOTCH_X) continue;
+        parts.push(
+          put("B_CON_5", [Number(x.toFixed(2)), y, Number(z.toFixed(2))], {
+            scale,
+            role: r > radius - 0.7 ? `${role} rim` : role,
+          }),
+        );
+      }
     }
-  }
+  };
+
+  // Two stacked decks, the upper one smaller: a flat mosaic reads as a tiled floor
+  // however well the bevels are buried, and a saucer is not flat — the step is what
+  // gives the disc a silhouette from the side.
+  deckOf(R, 0, 1, "saucer plate", true);
+  deckOf(1.35, 0.42, 0.7, "upper deck", false);
 
   // forward mandibles, rooted inside the rim so they are one hull with the disc
   parts.push(
-    put("B_CON_5", [0.62, 0, 1.65], { scale: 0.6, role: "mandible root" }),
-    put("B_CON_5", [0.62, 0, 2.3], { scale: 0.6, role: "mandible" }),
-    put("B_STR_A_N", [0.62, 0, 2.95], { scale: 0.6, role: "mandible tip" }),
-    put("B_CON_5", [-0.62, 0, 1.65], { mirror: true, scale: 0.6, role: "mandible root" }),
-    put("B_CON_5", [-0.62, 0, 2.3], { mirror: true, scale: 0.6, role: "mandible" }),
-    put("B_STR_A_N", [-0.62, 0, 2.95], { mirror: true, scale: 0.6, role: "mandible tip" }),
+    put("B_CON_5", [0.85, 0, 1.55], { scale: 0.8, role: "mandible root" }),
+    put("B_CON2_2", [0.85, 0, 2.6], { scale: 0.8, role: "mandible" }),
+    put("B_STR_A_N", [0.85, 0, 3.7], { scale: 0.8, role: "mandible tip" }),
+    put("B_CON_5", [-0.85, 0, 1.55], { mirror: true, scale: 0.8, role: "mandible root" }),
+    put("B_CON2_2", [-0.85, 0, 2.6], { mirror: true, scale: 0.8, role: "mandible" }),
+    put("B_STR_A_N", [-0.85, 0, 3.7], { mirror: true, scale: 0.8, role: "mandible tip" }),
   );
 
   // offset cockpit on its own access tube, starboard, jammed into the rim
   parts.push(
-    put("B_CON2_2", [1.55, 0.04, 1.15], { scale: 0.75, role: "cockpit tube" }),
-    put("B_COK_B", [2.2, 0.04, 0.9], { scale: 0.9, role: "cockpit" }),
+    put("B_CON_5", [1.5, 0.04, 1.2], { scale: 0.75, role: "cockpit tube" }),
+    put("B_COK_B", [2.15, 0.04, 0.85], { scale: 0.9, role: "cockpit" }),
     // docking rings flush against the rim
     put("B_SHL_A", [1.62, -0.1, -0.7], { role: "docking ring stbd" }),
     put("B_SHL_A", [-1.62, -0.1, -0.7], { mirror: true, role: "docking ring port" }),
@@ -123,46 +134,48 @@ export function starDestroyer(bp: Blueprint): NamedRecipe {
     ]),
   );
 
-  // The wedge: rows of connector cells across the hull, each row wider than the
-  // last. Four approaches were tried and three are recorded here because the
-  // failures are the informative part:
+  // The wedge: rows of connector cells, each row wider than the last, tapering to a
+  // single cell at the bow. Two numbers matter and both were wrong at first:
   //
-  //   fanned wing plates   -> fins. The game wings are thin perforated panels;
-  //                           stretched to five units their spars become spikes
-  //                           and their cut-outs become holes.
-  //   tiled grid cells     -> a radiator grille. Every cell carries its own
-  //                           bevel, so the eye counts crates, not a hull.
-  //   habitation modules   -> those are INTERIOR parts: no roof, so the rows
-  //                           render as open corridors.
+  //   ASPECT   a Star Destroyer is about 1.8 times longer than it is wide. At ten
+  //            cells across and seven of length the hull was WIDER than it was long
+  //            and rendered as a brick, so the widest row is seven cells and the
+  //            hull runs ten units fore-and-aft.
+  //   OVERLAP  rows have to bite into each other on both axes. At a 1.3-1.8 z-pitch
+  //            with one-unit cells the gaps read as black stripes and the wedge came
+  //            out a radiator grille; at 0.9 it is one continuous surface.
   //
-  // Connector cells are solid boxes with flat tops, and overlapping them by
-  // about a third buries the bevels. Rows of different widths then step from the
-  // bow to the wide stern, which is what the Workshop would let you lay.
-  // The rows have to overlap on BOTH axes. At a 1.3-1.8 z-pitch with one-unit
-  // cells the gaps between rows read as black stripes and the wedge came out a
-  // radiator grille; at 0.9 it is a single surface, and the width still steps.
+  // Wing plates were tried for this and failed: the game's wings are thin
+  // perforated panels, and stretched to hull size their cut-outs become holes.
   const ROWS: [number, number][] = [
-    // [cells across the row, z]
-    [2, 2.3],
-    [4, 1.4],
-    [4, 0.5],
-    [6, -0.4],
-    [6, -1.3],
-    [8, -2.2],
-    [8, -3.1],
-    [10, -4.0],
-    [10, -4.9],
+    [1, 3.2],
+    [2, 2.4],
+    [3, 1.6],
+    [4, 0.7],
+    [5, -0.2],
+    [6, -1.1],
+    [7, -2.0],
+    [7, -2.9],
+    [7, -3.8],
+    [7, -4.7],
+    [7, -5.6],
+    [7, -6.5],
   ];
   for (const [across, z] of ROWS) {
+    const span = (across - 1) * 0.85;
     for (let i = 0; i < across; i++) {
-      const x = (i - (across - 1) / 2) * 0.9;
-      parts.push(put("B_CON_5", [Number(x.toFixed(2)), 0, z], { role: "hull plate" }));
+      const x = -span / 2 + i * 0.85;
+      parts.push(
+        put("B_CON_5", [Number(x.toFixed(2)), 0, z], {
+          role: across <= 2 ? "prow plate" : "hull plate",
+        }),
+      );
     }
   }
 
   // bridge tower with its two sensor globes, near the stern
   const tower: LatticePlacement[] = [];
-  const TOWER_Z = -4.4;
+  const TOWER_Z = -6.0;
   tower.push(standing("B_ALK_B", parts, 0, TOWER_Z, { role: "tower base" }) as LatticePlacement);
   tower.push(
     standing("B_HAB1_A", [...parts, ...tower], 0, TOWER_Z, { role: "tower deck" }) as LatticePlacement,
@@ -180,12 +193,12 @@ export function starDestroyer(bp: Blueprint): NamedRecipe {
 
   // three big ion engines across the stern
   parts.push(
-    ...row("B_TRU_C", [-1.9, 0, 1.9], 0, -4.0, { role: "ion engine" }),
-    ...row("B_TRU_A", [-3.1, 3.1], 0, -4.0, { role: "ion engine" }),
-    hanging("B_TUR_F", parts, 0, 1.9, { role: "bow turbolaser" }) as LatticePlacement,
+    ...row("B_TRU_C", [-1.7, 0, 1.7], 0, -7.1, { role: "ion engine" }),
+    ...row("B_TRU_A", [-2.8, 2.8], 0, -7.1, { role: "ion engine" }),
+    hanging("B_TUR_F", parts, 0, 2.9, { role: "bow turbolaser" }) as LatticePlacement,
     ...compact([
-      standing("B_TUR_B", parts, 0.95, 1.6, { role: "turbolaser" }),
-      standing("B_TUR_B", parts, -0.95, 1.6, { mirror: true, role: "turbolaser" }),
+      standing("B_TUR_B", parts, 0.9, 1.2, { role: "turbolaser" }),
+      standing("B_TUR_B", parts, -0.9, 1.2, { mirror: true, role: "turbolaser" }),
     ]),
   );
 
