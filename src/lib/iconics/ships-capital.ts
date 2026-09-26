@@ -147,24 +147,30 @@ export function starDestroyer(bp: Blueprint): NamedRecipe {
   //
   // Wing plates were tried for this and failed: the game's wings are thin
   // perforated panels, and stretched to hull size their cut-outs become holes.
+  //   TAPER    a Star Destroyer widens the whole way aft; the first version held the
+  //            widest row for half the hull and rendered as a brick with a beak.
+  //            Every row is wider than the one in front of it, so the plan view is
+  //            the triangle it should be.
   const ROWS: [number, number][] = [
-    [1, 3.2],
-    [2, 2.4],
-    [3, 1.6],
-    [4, 0.7],
-    [5, -0.2],
-    [6, -1.1],
-    [7, -2.0],
-    [7, -2.9],
-    [7, -3.8],
-    [7, -4.7],
-    [7, -5.6],
-    [7, -6.5],
+    [1, 5.6],
+    [2, 4.7],
+    [2, 3.8],
+    [3, 2.9],
+    [4, 2.0],
+    [4, 1.1],
+    [5, 0.2],
+    [5, -0.7],
+    [6, -1.6],
+    [6, -2.5],
+    [7, -3.4],
+    [7, -4.3],
+    [7, -5.2],
+    [7, -6.1],
   ];
   for (const [across, z] of ROWS) {
-    const span = (across - 1) * 0.85;
+    const span = (across - 1) * 0.82;
     for (let i = 0; i < across; i++) {
-      const x = -span / 2 + i * 0.85;
+      const x = -span / 2 + i * 0.82;
       parts.push(
         put("B_CON_5", [Number(x.toFixed(2)), 0, z], {
           role: across <= 2 ? "prow plate" : "hull plate",
