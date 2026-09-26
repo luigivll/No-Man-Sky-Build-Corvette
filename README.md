@@ -62,14 +62,36 @@ So `src/lib/iconics/` hand-draws all 21. `dsl.ts` is the vocabulary:
 That last one is the difference between a cannon on a wingtip and a cannon
 hanging in space next to it: a bbox claims a corner the metal never reaches.
 
-```
-X-Wing        four S-foils hinged from ONE station, canted 33 degrees
-TIE Int.      ball pod on two pylons, four blades thrown out and up/down
-Falcon        hexagonal saucer, two mandibles, offset cockpit tube
-Star Destroy. long spine, three stepped plates flaring to the stern
-Rocinante     seven-cell hull, four Epstein drives, sponsons, eight PDCs
-Razor Crest   24 m long and 28 m wide: boxy hull, twin barrel engines
-```
+All 21, and the one decision each of them turns on:
+
+| ship | the decision |
+| --- | --- |
+| X-Wing | four S-foils hinged from **one** station, canted 33°, span stretched 3× |
+| TIE Interceptor | ball pod on two pylons, four blades thrown out and up/down |
+| Delta-7 / Eta-2 | needle noses (a `span` along the hull, not across it) |
+| N-1 | engines slung at the wingtips |
+| Viper Mk II | nose intake, five-cell tube, three nozzles across the tail |
+| Batwing | one huge swept wing pair with the tips folded up |
+| Sentinel | braced outriggers carrying forward-curving scythes |
+| Pelican | droop wings with the engines at the tips, plus the tail boom |
+| Blackbird | nacelles **under** the wing roots, twin tails standing on them |
+| Razor Crest | 24 m long and 28 m wide: boxy hull, twin barrel engines |
+| Falcon | two stacked decks, the front of the disc cut open, two mandibles |
+| Star Destroyer | 12 rows from a one-cell prow to seven across, 1.8× longer than wide |
+| Enterprise | wide saucer, neck buried in its underside, nacelles up on pylons |
+| Serenity | raised bridge with the sensor mule on it, outboard VTL pods |
+| Rocinante | seven-cell hull, four Epstein drives, sponsons, eight PDCs |
+| Nostromo | towing arms forward, three-tier refinery tower amidships |
+| Thunderbird 2 | the two pod carriers on braced struts |
+| Firespray | flat hull flown upright, two-segment grapple arms |
+| Normandy | CIC hump, swept wings, twin tails, two engine pods |
+| Corrupted Dreadnought | four blades out of the flanks, stacked dorsal ridge |
+
+Three failures worth recording, because they are what the numbers above are
+avoiding: scaled cells still on a full-unit pitch read as **loose crates**; a hull
+laid out wider than it is long reads as a **brick** (that was the Star Destroyer
+at ten cells across); and stretched wing panels read as **fins** or **holes**,
+because the game's wings are thin perforated plates.
 
 Hand-drawn ships are painted from their own reference art rather than from the
 catalogue's hull families, and each carries the camera it wants to be seen from
