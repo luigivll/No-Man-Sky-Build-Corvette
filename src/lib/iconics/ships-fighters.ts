@@ -167,13 +167,15 @@ export function delta7(bp: Blueprint): NamedRecipe {
     span("B_WNG_R", [0, -0.08, 0.8], [0, -0.08, 2.5], { scale: 0.16, role: "chin fairing" }),
   );
 
-  // two short blades at the stern, barely canted, with the engines on the roots
+  // Two SHORT fins at the stern, engines tucked against their roots. At 0.75 scale
+  // these came out as planks a third of the ship's length; the Aethersprite's fins
+  // are small wedges, so they are scaled and reached down accordingly.
   parts.push(
-    ...spanPair("B_WNG_K", [0.5, 0.02, -2.5], [1.75, 0.35, -2.5], { scale: 0.75, role: "wing blade" }),
+    ...spanPair("B_WNG_K", [0.5, 0.0, -2.35], [1.3, 0.22, -2.55], { scale: 0.34, role: "wing fin" }),
   );
   parts.push(
-    put("B_TRU_A", [0.72, 0.05, -2.9], { role: "sublight thruster" }),
-    put("B_TRU_A", [-0.72, 0.05, -2.9], { mirror: true, role: "sublight thruster" }),
+    put("B_TRU_A", [0.68, 0.0, -2.75], { role: "sublight thruster" }),
+    put("B_TRU_A", [-0.68, 0.0, -2.75], { mirror: true, role: "sublight thruster" }),
     put("B_TUR_A", [0.3, -0.2, 0.9], { role: "nose cannon" }),
     put("B_TUR_A", [-0.3, -0.2, 0.9], { mirror: true, role: "nose cannon" }),
     // a small astromech dome, not a beach ball: the ion barrier is a wide flat

@@ -589,36 +589,41 @@ export function firespray(bp: Blueprint): NamedRecipe {
     put("B_TUR_E", [0, -0.3, 2.4], { role: "chin blaster" }),
   );
 
-  // The two rotating arms, each in two segments: the first rises beside the hull,
-  // the second leans back in toward the nose. That curve is the ship's silhouette,
-  // and one straight segment cannot make it.
+  // The two rotating arms, each in two segments.
+  //
+  // These used to be built from B_WNG_R, and a wing is 2.3 units of chord even at
+  // half scale — as long front to back as the hull — so the "arms" rendered as
+  // swept wings and the ship read as a flying wing. A structural bar (B_STR_A_N,
+  // one unit of chord) stretched to the segment length makes an actual limb.
   for (const side of [1, -1] as const) {
-    const elbow = span("B_WNG_R", [side * 1.05, 0.1, -0.9], [side * 1.85, 1.25, -1.2], {
-      scale: 0.5,
+    const elbow = span("B_STR_A_N", [side * 1.0, 0.15, -0.8], [side * 1.75, 1.15, -1.1], {
+      scale: 0.6,
       mirror: side < 0,
       role: "grapple arm lower",
     });
     parts.push(elbow);
-    const knee = atTip(elbow, [side > 0 ? 1 : -1, 1, 0], 0.4);
+    const knee = atTip(elbow, [side > 0 ? 1 : -1, 1, 0], 0.25);
     if (knee) {
-      const upper = span("B_WNG_R", knee, [side * 1.15, knee[1] + 1.5, knee[2] - 0.3], {
-        scale: 0.34,
+      // the upper segment leans back IN toward the nose, which is the curve
+      const wrist = [side * 1.05, knee[1] + 1.35, knee[2] + 0.5] as V3;
+      const upper = span("B_STR_A_N", knee, wrist, {
+        scale: 0.52,
         mirror: side < 0,
         role: "grapple arm upper",
       });
       parts.push(upper);
-      const gun = atTip(upper, [side > 0 ? -1 : 1, 1, 0], 0.3);
-      if (gun) {
-        parts.push({
-          assetId: "B_TUR_A",
-          pos: [gun[0], gun[1] - 0.12, gun[2] - 0.4],
-          mirror: side < 0,
-          roll: upper.roll,
-          role: "blaster cannon",
-        });
+      const cannon = atTip(upper, [side > 0 ? -1 : 1, 1, 0.4], 0.22);
+      if (cannon) {
+        parts.push(
+          put("B_TUR_E", [cannon[0], cannon[1] + 0.1, cannon[2] + 0.55], {
+            mirror: side < 0,
+            roll: upper.roll,
+            role: "blaster cannon",
+          }),
+        );
       }
     }
-    parts.push(put("B_TRU_A", [side * 1.5, 0.42, -1.9], { mirror: side < 0, role: "arm thruster" }));
+    parts.push(put("B_TRU_A", [side * 1.5, 0.34, -1.75], { mirror: side < 0, role: "arm thruster" }));
   }
 
   // the two big drives hang under the flat hull
