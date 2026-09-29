@@ -13,15 +13,17 @@ database — everything runs client-side off two local JSON files.
 
 Double-click and go — no Node, no npm, no terminal:
 
-**[NMS.Corvette.Shipyard.Setup.1.0.11.exe](https://github.com/luigivll/No-Man-Sky-Build-Corvette/releases/latest/download/NMS.Corvette.Shipyard.Setup.1.0.11.exe)**
+**[NMS.Corvette.Shipyard.Setup.exe](https://github.com/luigivll/No-Man-Sky-Build-Corvette/releases/latest/download/NMS.Corvette.Shipyard.Setup.exe)**
 (installer) ·
-**[NMS.Corvette.Shipyard-1.0.11-win.zip](https://github.com/luigivll/No-Man-Sky-Build-Corvette/releases/latest/download/NMS.Corvette.Shipyard-1.0.11-win.zip)**
+**[NMS.Corvette.Shipyard-win.zip](https://github.com/luigivll/No-Man-Sky-Build-Corvette/releases/latest/download/NMS.Corvette.Shipyard-win.zip)**
 (portable, unpack and run `NMS Corvette Shipyard.exe`)
 
-Everything is bundled: the app, the 8.3 MB real-mesh pack and all 21 iconic builds.
-It runs offline. Built by CI from the `app-v1.0.11` tag — see the
+Those two links always serve the newest build: every release carries its
+versioned files *and* a copy under a name with no version in it, so this page
+never goes stale. Everything is bundled — the app, the mesh pack and all 21
+iconic builds — and it runs offline. See the
 [releases page](https://github.com/luigivll/No-Man-Sky-Build-Corvette/releases)
-for every version.
+for the version history.
 
 ### Real part meshes
 
