@@ -28,7 +28,19 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-void-950 text-slate-200 antialiased">
+      {/*
+        suppressHydrationWarning is here for ONE reason: browser extensions and
+        preview proxies rewrite the body tag before React hydrates. The reported
+        mismatch was `style={{isolation:"isolate"}}`, which appears nowhere in
+        src/ — and the static export proves it, every page ships a body tag with
+        a className and no style attribute at all. React would otherwise flag a
+        change we did not make and cannot prevent. It applies to this element's
+        own attributes only, so a real mismatch in the tree still shows up.
+      */}
+      <body
+        className="min-h-screen bg-void-950 text-slate-200 antialiased"
+        suppressHydrationWarning
+      >
         <BuildProvider>
           <div className="app-grid-bg scanlines relative flex min-h-screen flex-col">
             <Navbar />
