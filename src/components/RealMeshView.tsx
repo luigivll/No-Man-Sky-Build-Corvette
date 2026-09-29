@@ -45,14 +45,16 @@ export default function RealMeshView({
     };
   }, []);
 
-  const recipe = useMemo(() => buildToRecipe(build), [build]);
+  // Same rule as LatticeView: nothing is compiled until the meshes are here,
+  // because a recipe compiled without the pack has no modules in it at all.
+  const recipe = useMemo(() => (ready ? buildToRecipe(build) : null), [build, ready]);
 
   const mesh: ShipMesh | null = useMemo(() => {
-    if (!ready) return null;
+    if (!recipe) return null;
     return assembleCorvette(recipe, {
       maxTrisPerPart: heroBudget(recipe.parts.length, compact ? 14000 : 26000),
     });
-  }, [ready, recipe, compact]);
+  }, [recipe, compact]);
 
   if (ready === null) {
     return (
@@ -69,8 +71,24 @@ export default function RealMeshView({
     );
   }
 
+  if (!recipe) {
+    // the pack never arrived: show the polygon stand-ins built from the Build
+    // itself, which need no meshes, instead of a lattice recipe with no parts
+    return (
+      <ShipPreview3D
+        build={build}
+        height={height}
+        compact={compact}
+        showControls={showControls}
+        initialView={initialView}
+        showStylePicker={false}
+      />
+    );
+  }
+
   if (!mesh) {
-    // the pack could not be fetched — fall back rather than showing nothing
+    // the pack is here but this recipe did not assemble — fall back to the
+    // polygon view of the compiled lattice rather than showing nothing
     return (
       <ShipPreview3D
         build={latticeBuild(recipe)}

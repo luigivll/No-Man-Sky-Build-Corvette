@@ -234,6 +234,16 @@ function rotateY(x: number, z: number, quarters: number): [number, number] {
  * is placed so its leading face touches the previous part's trailing face.
  */
 export function chainZ(ids: string[], anchorZ = 0, opts: { y?: number; startIndex?: number } = {}): LatticePlacement[] {
+  // Every id here resolves through the mesh pack. Called before it has loaded
+  // (which is what the browser does at bundle-evaluation time), NOTHING
+  // resolves, every module is skipped and the caller's positional destructuring
+  // comes out undefined — a crash three frames away from the cause. Say so.
+  if (!packSync() && process.env.NODE_ENV !== "production") {
+    console.warn(
+      `[lattice] chainZ(${ids.join(", ")}) ran before the mesh pack loaded — no modules placed. ` +
+        "Await ensurePack() before compiling a recipe.",
+    );
+  }
   const out: LatticePlacement[] = [];
   let place = true;
   let cursorZ = anchorZ;

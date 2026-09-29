@@ -3,7 +3,7 @@ import { Chip, HudLabel, Panel, PanelHeader } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { blueprints } from "@/lib/data";
 import { blueprintToRecipe } from "@/lib/blueprintLattice";
-import { LATTICE_RECIPES } from "@/lib/fleet";
+import { latticeRecipes } from "@/lib/fleet";
 
 /**
  * Lattice builds index.
@@ -20,13 +20,16 @@ export const metadata = {
 };
 
 export default function LatticeIndexPage() {
+  // On the server the pack is read at import time, so the index always has it;
+  // this stays consistent with the client entry point either way.
+  const fleet = latticeRecipes();
   const entries = blueprints.map((bp) => {
     const recipe = blueprintToRecipe(bp);
-    const prologue = LATTICE_RECIPES.find((r) => r.id === recipe.id);
+    const prologue = fleet.find((r) => r.id === recipe.id);
     return { bp, recipe, custom: Boolean(prologue) };
   });
 
-  const probe = LATTICE_RECIPES[0];
+  const probe = fleet[0];
 
   return (
     <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">

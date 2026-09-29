@@ -14,6 +14,7 @@
  */
 
 import { chainZ, flank, stack, type LatticePlacement, type LatticeRecipe } from "./lattice";
+import { packSync } from "./realMeshes";
 import type { Build } from "./types";
 
 export interface NamedRecipe extends LatticeRecipe {
@@ -83,10 +84,37 @@ function firstNavyProbe(): NamedRecipe {
   };
 }
 
-export const LATTICE_RECIPES: NamedRecipe[] = [firstNavyProbe()];
+/**
+ * The hand-tuned ships, built on demand.
+ *
+ * This used to be `export const LATTICE_RECIPES = [firstNavyProbe()]`, compiled
+ * while the module was being evaluated — and every id in that function resolves
+ * through the MESH PACK, which the browser fetches after the bundle has already
+ * run. So on the client `chainZ` resolved nothing, skipped every module, handed
+ * back an empty spine, and `flank` was called with an undefined host: the
+ * /builder page died with "Cannot read properties of undefined (reading
+ * 'assetId')" before it drew a single pixel. The server never noticed, because
+ * there the pack is read synchronously at import.
+ *
+ * A recipe is now only compiled once the pack is actually there, and the result
+ * is cached against that pack: callers get an empty list (never a broken ship)
+ * until the meshes arrive, then the real one.
+ */
+let recipeCache: { pack: unknown; recipes: NamedRecipe[] } | null = null;
+
+export function latticeRecipes(): NamedRecipe[] {
+  const pack = packSync();
+  // No pack yet: say so by returning nothing. A recipe compiled now would be
+  // missing every module, which is far worse than an empty viewer.
+  if (!pack) return [];
+  if (recipeCache && recipeCache.pack === pack) return recipeCache.recipes;
+  const recipes = [firstNavyProbe()];
+  recipeCache = { pack, recipes };
+  return recipes;
+}
 
 export function recipeById(id: string): NamedRecipe | undefined {
-  return LATTICE_RECIPES.find((r) => r.id === id);
+  return latticeRecipes().find((r) => r.id === id);
 }
 
 /**

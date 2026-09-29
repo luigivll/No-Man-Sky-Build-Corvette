@@ -2,7 +2,7 @@ import Link from "next/link";
 import { HudLabel, Panel, PanelHeader } from "@/components/ui";
 import LatticeView from "@/components/LatticeView";
 import { blueprints, blueprintBySlug } from "@/lib/data";
-import { LATTICE_RECIPES } from "@/lib/fleet";
+import { latticeRecipes } from "@/lib/fleet";
 
 /**
  * One iconic ship, built from real corvette parts on the game grid.
@@ -13,7 +13,10 @@ import { LATTICE_RECIPES } from "@/lib/fleet";
  */
 
 export function generateStaticParams() {
-  return [...LATTICE_RECIPES.map((r) => ({ slug: r.id })), ...blueprints.map((bp) => ({ slug: bp.slug }))];
+  return [
+    ...latticeRecipes().map((r) => ({ slug: r.id })),
+    ...blueprints.map((bp) => ({ slug: bp.slug })),
+  ];
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
@@ -34,7 +37,7 @@ export default async function LatticeBlueprintPage({
 }) {
   const { slug } = await params;
   const bp = blueprintBySlug(slug);
-  const probe = LATTICE_RECIPES.find((r) => r.id === slug) ?? null;
+  const probe = latticeRecipes().find((r) => r.id === slug) ?? null;
   const index = blueprints.findIndex((b) => b.slug === slug);
   const prev = index > 0 ? blueprints[index - 1] : null;
   const next = index >= 0 && index < blueprints.length - 1 ? blueprints[index + 1] : null;

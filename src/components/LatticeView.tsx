@@ -7,7 +7,7 @@ import { Chip, HudLabel, Panel, PanelHeader } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { assembleCorvette, heroBudget, placedBox } from "@/lib/lattice";
 import { blueprintToRecipe } from "@/lib/blueprintLattice";
-import { LATTICE_RECIPES, latticeBuild } from "@/lib/fleet";
+import { latticeRecipes, latticeBuild } from "@/lib/fleet";
 import { ensurePack } from "@/lib/realMeshes";
 import { blueprintBySlug } from "@/lib/data";
 import type { ShipMesh } from "@/lib/render3d";
@@ -33,10 +33,17 @@ export default function LatticeView({ slug, height = 620 }: { slug: string; heig
     };
   }, []);
 
-  // the hand-built probe lives in the fleet table rather than in the blueprints
+  // The hand-built probe lives in the fleet table rather than in the blueprints.
+  // `ready` is a dependency on purpose: compiling before the pack has arrived
+  // produces a ship with no modules, and memoising that would serve the empty
+  // version for the rest of the session.
   const recipe = useMemo(
-    () => LATTICE_RECIPES.find((r) => r.id === slug) ?? (blueprint ? blueprintToRecipe(blueprint) : null),
-    [blueprint, slug],
+    () =>
+      ready
+        ? latticeRecipes().find((r) => r.id === slug) ??
+          (blueprint ? blueprintToRecipe(blueprint) : null)
+        : null,
+    [blueprint, slug, ready],
   );
 
   const mesh: ShipMesh | null = useMemo(
