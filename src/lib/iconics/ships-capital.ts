@@ -599,6 +599,7 @@ export function firespray(bp: Blueprint): NamedRecipe {
     const elbow = span("B_STR_A_N", [side * 1.0, 0.15, -0.8], [side * 1.75, 1.15, -1.1], {
       scale: 0.6,
       mirror: side < 0,
+      exact: true,
       role: "grapple arm lower",
     });
     parts.push(elbow);
@@ -609,6 +610,7 @@ export function firespray(bp: Blueprint): NamedRecipe {
       const upper = span("B_STR_A_N", knee, wrist, {
         scale: 0.52,
         mirror: side < 0,
+        exact: true,
         role: "grapple arm upper",
       });
       parts.push(upper);

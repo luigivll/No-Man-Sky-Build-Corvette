@@ -268,6 +268,17 @@ export interface SpanOpts extends Opts {
   reach?: number;
   /** where along the chord to centre the panel (defaults to A's z) */
   chordCenter?: number;
+  /**
+   * Treat the part as a limb that must CONNECT A to B exactly.
+   *
+   * The default stretches a panel to its horizontal run, which is right for a
+   * wing: a wing that droops 30 degrees is not 30 % longer than one that does
+   * not, and stretching it to the hypotenuse tears the mesh off its own root.
+   * A limb is the opposite case — a grapple arm whose far end must land on B —
+   * so it stretches to the full segment length. Without this, a 53-degree arm
+   * only rose 0.6 of the 1.25 it was asked for and read as a ramp.
+   */
+  exact?: boolean;
 }
 
 /** the point `t` of the way from A to B */
@@ -312,11 +323,23 @@ export function span(assetId: string, a: V3, b: V3, opts: SpanOpts = {}): Lattic
     });
   }
 
-  const roll = opts.roll ?? Math.atan2(dy, dx);
-  // Stretch along the part's own axis, not along the sloped target: a wing that
-  // droops 30 degrees is not 30 % longer than one that does not, and stretching it
-  // to the hypotenuse is what tears the mesh away from its own root.
-  const stretchX = Math.max(0.1, Math.abs(dx) / spanLen);
+  // The roll is always described from the STARBOARD side. A mirrored part has its
+  // local +x mapped onto world -x, so it already lifts the right way; feeding the
+  // mirrored dx back in computes the supplement (127 degrees instead of 53) and
+  // lays the port limb flat.
+  const roll = opts.roll ?? Math.atan2(dy, Math.abs(dx));
+  const horizontal = Math.abs(dx) / spanLen;
+  const chordLength = Math.hypot(dx, dy) / spanLen;
+  const stretchX = Math.max(0.1, opts.exact ? chordLength : horizontal);
+
+  if (opts.exact) {
+    // a limb pivots about its own snap point, so the anchor IS the joint
+    const py = a[1] - (local.min[1] + local.max[1]) / 2;
+    const chord = (local.min[2] + local.max[2]) / 2;
+    const pz = (opts.chordCenter ?? a[2]) - chord;
+    return put(assetId, [a[0], py, pz], { ...opts, roll, stretchX });
+  }
+
   // A mirrored part maps local +x onto world -x, so the root lands on the other
   // side of the anchor. Both cases put the part's INBOARD face on the anchor,
   // which is the whole contract of this helper.
