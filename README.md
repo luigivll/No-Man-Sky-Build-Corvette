@@ -409,7 +409,7 @@ npm run app          # run it as a desktop window
 npm run app:build    # package a Windows .exe installer into release/
 ```
 
-CI builds and publishes the installer whenever a tag like `app-v1.0.11` is pushed
+CI builds and publishes the installer whenever a tag like `app-v1.0.12` is pushed
 (`.github/workflows/build-windows.yml`), taking the version from the tag itself.
 The previous notes here said `app:build` could not be done in the development
 sandbox; that is why the release is built on a Windows runner instead.
