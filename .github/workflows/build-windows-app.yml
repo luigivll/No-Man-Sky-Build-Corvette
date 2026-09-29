@@ -52,22 +52,40 @@ jobs:
           npm run build:static 2>&1 | tee build.log
 
       # A failing Windows build cannot be debugged from the sandbox (the log
-      # endpoint is unreachable there), so the tail of the log is committed to the
-      # branch the run was triggered from.
-      - name: Park the build log on failure
+      # endpoint is unreachable there), so this job used to PARK the tail of its
+      # log in the repository: it committed ci-build-error.log and pushed it to
+      # the branch under test. That worked exactly once — it is how the
+      # 'spawn EINVAL' crash was found — and then left a stale copy of a crash
+      # from a build that had already been fixed sitting in the tree, which is
+      # precisely the kind of debris somebody later reads as a live failure.
+      #
+      # The log now goes where a failing job's output belongs: the run summary,
+      # plus an artifact you can download. A CI job has no business writing
+      # commits to the branch it is testing.
+      - name: Publish the build log
         if: failure()
         shell: bash
-        env:
-          DIAG_BRANCH: arena/01a0b947-no-man-sky-build-corvette
         run: |
-          tail -n 80 build.log > ci-build-error.log || true
-          git config user.name "shipyard-ci"
-          git config user.email "shipyard-ci@users.noreply.github.com"
-          git add -f ci-build-error.log
-          git commit -m "ci: windows build log [skip ci]" || true
-          # a tag-triggered run checks out a detached HEAD, so the destination
-          # branch has to be named explicitly
-          git push origin "HEAD:refs/heads/$DIAG_BRANCH" || true
+          if [ ! -f build.log ]; then
+            echo "::error::the job failed before the static build, so there is no build.log"
+            exit 0
+          fi
+          {
+            echo "### build:static — ultimas 80 lineas"
+            echo
+            echo '```'
+            tail -n 80 build.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::build:static failed — full log in the summary and in the windows-build-log artifact"
+
+      - name: Upload the build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build-log
+          path: build.log
+          if-no-files-found: ignore
 
       # The artifact names come from package.json, while the release name comes
       # from the tag, so a tag without a version bump ships an installer labelled
@@ -119,4 +137,12 @@ jobs:
             gh release create "$tag" --title "NMS Corvette Shipyard $tag" \
               --notes "Windows build of the shipyard: install, launch, everything works offline."
           gh release upload "$tag" release/*.exe release/*.zip --clobber
+          # A second copy under a name with no version in it, so the README can
+          # link to /releases/latest/download/<stable name> and stay correct
+          # forever instead of being edited on every single release.
+          cp "$(ls release/*.exe | head -1)" release/NMS.Corvette.Shipyard.Setup.exe
+          cp "$(ls release/*.zip | head -1)" release/NMS.Corvette.Shipyard-win.zip
+          gh release upload "$tag" \
+            release/NMS.Corvette.Shipyard.Setup.exe \
+            release/NMS.Corvette.Shipyard-win.zip --clobber
           gh release view "$tag" --json assets --jq '.assets[] | "\(.name)\t\(.size)"'

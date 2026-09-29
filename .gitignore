@@ -17,6 +17,10 @@ next-env.d.ts
 *.tsbuildinfo
 
 # debug
+# CI dumps the tail of a failing Windows build here; it is published as a run
+# artifact and must never come back into the tree
+ci-build-error.log
+build.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
