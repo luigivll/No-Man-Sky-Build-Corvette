@@ -107,6 +107,32 @@ function lookup(assetId: string): PackedPart | null {
 }
 
 /** world-space bbox of a part once its transform is applied */
+/**
+ * The world box of a placement, using EVERY field it carries.
+ *
+ * There used to be six hand-written copies of this expression around the
+ * codebase, and the ones in `flank`, `stack` and `abaft` passed only yaw,
+ * mirror and scale — dropping `roll` and `stretchX`. A host that had been
+ * canted or stretched was therefore measured from its flat bounding box: an
+ * outboard part bolted to a wing rolled 40 degrees came out 0.32 of a unit
+ * INSIDE the plate (its measured edge was 0.90 where the real wing reaches
+ * 1.21), and one bolted to a steeply canted host floats clear instead. That is
+ * exactly the "module floating between the wings" report, and the fix is to
+ * have one accessor instead of six near-identical ones.
+ */
+export function placementBox(p: LatticePlacement | null | undefined): Box | null {
+  if (!p) return null;
+  return placedBox(
+    p.assetId,
+    p.pos,
+    p.yaw ?? 0,
+    p.mirror ?? false,
+    p.scale ?? 1,
+    p.roll ?? 0,
+    p.stretchX ?? 1,
+  );
+}
+
 export function placedBox(
   assetId: string,
   pos: V3,
@@ -119,24 +145,64 @@ export function placedBox(
   const p = lookup(assetId);
   if (!p) return null;
   const raw = partBox(p);
-  const b: Box = {
+  // A rolled part cannot be measured from its bounding box: rotating the eight
+  // corners sweeps a box wider and taller than the plate is, so a module
+  // stacked on a wing canted 40 degrees floated 0.032 above it — 0.047 when the
+  // wing was stretched too. Rotating the real vertices costs one pass over the
+  // part, cached per transform, and yields the face the geometry actually has.
+  const local: Box = (roll ? rolledExtent(assetId, scale, stretchX, roll) : null) ?? {
     min: [raw.min[0] * scale * stretchX, raw.min[1] * scale, raw.min[2] * scale],
     max: [raw.max[0] * scale * stretchX, raw.max[1] * scale, raw.max[2] * scale],
   };
-  const corners: V3[] = [];
-  for (const cx of [b.min[0], b.max[0]]) {
-    for (const cy of [b.min[1], b.max[1]]) {
-      for (const cz of [b.min[2], b.max[2]]) {
-        const [rx, ry] = rollXY(cx, cy, roll);
-        const [x, z] = rotateY(rx, cz, yaw);
-        corners.push([pos[0] + (mirror ? -x : x), pos[1] + ry, pos[2] + z]);
-      }
-    }
-  }
+  // yaw is whole quarter turns and mirroring is a sign flip, so both are exact
+  // on an axis-aligned box and only need the two corners that span it
+  const [ax, az] = rotateY(local.min[0], local.min[2], yaw);
+  const [bx, bz] = rotateY(local.max[0], local.max[2], yaw);
+  const xs = [mirror ? -ax : ax, mirror ? -bx : bx];
   return {
-    min: [Math.min(...corners.map((c) => c[0])), Math.min(...corners.map((c) => c[1])), Math.min(...corners.map((c) => c[2]))],
-    max: [Math.max(...corners.map((c) => c[0])), Math.max(...corners.map((c) => c[1])), Math.max(...corners.map((c) => c[2]))],
+    min: [pos[0] + Math.min(...xs), pos[1] + local.min[1], pos[2] + Math.min(az, bz)],
+    max: [pos[0] + Math.max(...xs), pos[1] + local.max[1], pos[2] + Math.max(az, bz)],
   };
+}
+
+/** Decode a part once and keep it — the assembler and the box maths share it. */
+function decodedPart(assetId: string, buffer: ArrayBuffer, entry: PackedPart) {
+  let dec = decodedCache.get(assetId);
+  if (!dec) {
+    const mesh = decodeRaw(buffer, entry);
+    dec = { positions: mesh.positions, indices: mesh.indices, box: partBox(entry) };
+    decodedCache.set(assetId, dec);
+  }
+  return dec;
+}
+
+/** Extent of a part's transformed vertices under a roll, in local space. */
+const rolledExtentCache = new Map<string, Box>();
+function rolledExtent(assetId: string, scale: number, stretchX: number, roll: number): Box | null {
+  const key = `${assetId}|${scale.toFixed(4)}|${stretchX.toFixed(4)}|${roll.toFixed(5)}`;
+  const hit = rolledExtentCache.get(key);
+  if (hit) return hit;
+  const pack = packSync();
+  const entry = pack?.byId.get(assetId);
+  if (!pack || !entry) return null;
+  const dec = decodedPart(assetId, pack.bin, entry);
+  const min: V3 = [Infinity, Infinity, Infinity];
+  const max: V3 = [-Infinity, -Infinity, -Infinity];
+  const pos3 = dec.positions;
+  for (let i = 0; i < pos3.length; i += 3) {
+    // the same order the assembler transforms in: scale, stretch, roll
+    const [x, y] = rollXY(pos3[i] * scale * stretchX, pos3[i + 1] * scale, roll);
+    const z = pos3[i + 2] * scale;
+    if (x < min[0]) min[0] = x;
+    if (y < min[1]) min[1] = y;
+    if (z < min[2]) min[2] = z;
+    if (x > max[0]) max[0] = x;
+    if (y > max[1]) max[1] = y;
+    if (z > max[2]) max[2] = z;
+  }
+  const box: Box = { min, max };
+  rolledExtentCache.set(key, box);
+  return box;
 }
 
 /** rotation in the ship's cross-section plane; positive lifts the outboard end */
@@ -229,12 +295,28 @@ export function flank(
     roll = 0,
     stretchX = 1,
   } = opts;
-  const hostBox = placedBox(host.assetId, host.pos, host.yaw ?? 0, host.mirror, host.scale ?? 1);
   // The inboard extent has to be measured AFTER the roll: a foil canted 30
-  // degrees no longer reaches as far sideways as its flat bbox claims.
+  // degrees no longer reaches as far sideways as its flat bbox claims. Both
+  // boxes go through placementBox, so the host's own roll and stretch count.
+  const hostBox = placementBox(host);
   const childLocal = placedBox(assetId, [0, 0, 0], 0, false, scale, roll, stretchX);
   const childMinX = childLocal ? childLocal.min[0] : 0;
-  const edge = hostBox ? (side > 0 ? hostBox.max[0] : hostBox.min[0]) : 0.5 * side;
+  // A host that is missing entirely — an unfinished ship, or a recipe naming an
+  // asset that is not in the catalogue — must not take the page down: the child
+  // falls back to the centreline datum, where the audit tool flags it.
+  if (!host) {
+    return {
+      assetId,
+      pos: [0.5 * side, 0.5 + yOffset, zOffset],
+      yaw,
+      mirror: side < 0,
+      scale,
+      roll,
+      stretchX,
+      role: side < 0 ? "port" : "starboard",
+    };
+  }
+  const edge = hostBox ? (side > 0 ? hostBox.max[0] : hostBox.min[0]) : host.pos[0] + 0.5 * side;
 
   // The child's INBOARD face is the one that has to land on the hull edge, and
   // which local face that is depends on whether the asset reaches outboard from
@@ -257,18 +339,38 @@ export function flank(
 export function stack(
   assetId: string,
   host: LatticePlacement,
-  opts: { below?: boolean; xOffset?: number; zOffset?: number } = {},
+  opts: {
+    below?: boolean;
+    xOffset?: number;
+    zOffset?: number;
+    scale?: number;
+    roll?: number;
+    stretchX?: number;
+  } = {},
 ): LatticePlacement {
-  const { below = true, xOffset = 0, zOffset = 0 } = opts;
-  const hostBox = placedBox(host.assetId, host.pos, host.yaw ?? 0, host.mirror, host.scale ?? 1);
-  const p = lookup(assetId);
-  const childBox = p ? partBox(p) : { min: [0, 0, 0] as V3, max: [0, 0, 0] as V3 };
-  let y = host.pos[1];
+  const { below = true, xOffset = 0, zOffset = 0, scale = 1, roll = 0, stretchX = 1 } = opts;
+  const hostBox = placementBox(host);
+  // The child used to be measured with the RAW catalogue box, so anything
+  // scaled or stretched hung itself off a face it does not actually have.
+  const childBox = placedBox(assetId, [0, 0, 0], 0, false, scale, roll, stretchX) ?? {
+    min: [0, 0, 0] as V3,
+    max: [0, 0, 0] as V3,
+  };
+  const hx = host?.pos[0] ?? 0;
+  const hz = host?.pos[2] ?? 0;
+  let y = host?.pos[1] ?? 0.5;
   if (hostBox) {
     // the child's near face lands on the host's near face
     y = below ? hostBox.min[1] - childBox.max[1] : hostBox.max[1] - childBox.min[1];
   }
-  return { assetId, pos: [host.pos[0] + xOffset, y, host.pos[2] + zOffset], role: below ? "ventral" : "dorsal" };
+  return {
+    assetId,
+    pos: [hx + xOffset, y, hz + zOffset],
+    scale,
+    roll,
+    stretchX,
+    role: below ? "ventral" : "dorsal",
+  };
 }
 
 // --------------------------------------------------------------------------- //
@@ -347,12 +449,7 @@ export function assembleCorvette(recipe: LatticeRecipe, opts: AssembleOptions = 
   for (const [index, place] of recipe.parts.entries()) {
     const entry = pack.byId.get(place.assetId);
     if (!entry) continue;
-    let dec = decodedCache.get(place.assetId);
-    if (!dec) {
-      const mesh = decodeRaw(pack.bin, entry);
-      dec = { positions: mesh.positions, indices: mesh.indices, box: partBox(entry) };
-      decodedCache.set(place.assetId, dec);
-    }
+    const dec = decodedPart(place.assetId, pack.bin, entry);
 
     const yaw = place.yaw ?? 0;
     const mirror = place.mirror ?? false;

@@ -25,7 +25,7 @@ import { styleById } from "./shipStyles";
 import {
   chainZ,
   flank,
-  placedBox,
+  placementBox,
   stack,
   type LatticePlacement,
 } from "./lattice";
@@ -206,7 +206,7 @@ interface Hosted {
 
 /** the asset's own box, expressed relative to its snap point, at `scale` */
 function localBox(assetId: string, scale: number): Box | null {
-  return placedBox(assetId, [0, 0, 0], 0, false, scale);
+  return placementBox({ assetId, pos: [0, 0, 0], scale });
 }
 
 /**
@@ -236,7 +236,7 @@ function fitY(assetId: string, scale: number, hostBox: Box, want: number): numbe
 
 /** Bolts a part behind the host, on the centreline, so a lone unit still fits. */
 function abaft(assetId: string, host: LatticePlacement, scale = 1): LatticePlacement {
-  const hostBox = placedBox(host.assetId, host.pos, host.yaw ?? 0, host.mirror, host.scale ?? 1);
+  const hostBox = placementBox(host);
   const local = localBox(assetId, scale);
   const z = hostBox && local ? hostBox.min[2] - local.max[2] : host.pos[2] - 1;
   return { assetId, pos: [0, host.pos[1], z], role: "tail", scale };
@@ -289,6 +289,15 @@ function mountFamily(
 
 /** the spine module whose centre sits closest to `t` (0 = nose, 1 = tail) */
 function hostAt(hosts: Hosted[], t: number): Hosted {
+  // An empty spine is reachable: the manual builder compiles a ship from
+  // whatever steps are filled in, and a hangar entry can hold landing gear and
+  // nothing else. hosts[0] on an empty array is undefined and every caller
+  // reads .place off the result, so the page went white instead of showing the
+  // parts that WERE there.
+  if (hosts.length === 0) {
+    const place: LatticePlacement = { assetId: "B_HAB_A", pos: [0, 0, 0], role: "datum" };
+    return { place, box: placementBox(place) ?? { min: [0, 0, 0], max: [0, 0, 0] } };
+  }
   const zs = hosts.map((h) => (h.box.min[2] + h.box.max[2]) / 2);
   const nose = Math.max(...zs);
   const tail = Math.min(...zs);
@@ -341,7 +350,7 @@ export function blueprintToRecipe(bp: Blueprint): NamedRecipe {
   const tailCap = TAIL_CAPS[seed % TAIL_CAPS.length];
   const hosts: Hosted[] = spine.map((place) => ({
     place,
-    box: placedBox(place.assetId, place.pos, place.yaw, place.mirror)!,
+    box: placementBox(place)!,
   }));
 
   const parts: LatticePlacement[] = [...spine];
@@ -357,7 +366,7 @@ export function blueprintToRecipe(bp: Blueprint): NamedRecipe {
     pos: [0, lastHost.place.pos[1], lastBox.min[2] - (capLocal?.max[2] ?? 0)],
     role: "tail",
   };
-  const capBox = placedBox(capPlace.assetId, capPlace.pos, 0, false)!;
+  const capBox = placementBox(capPlace)!;
   parts.push(capPlace);
   hosts.push({ place: capPlace, box: capBox });
 

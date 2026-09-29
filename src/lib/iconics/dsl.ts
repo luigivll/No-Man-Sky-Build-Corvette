@@ -16,7 +16,7 @@
  * still assembled, lit and walked through by the same engine as everything else.
  */
 
-import { chainZ, decodeRaw, placedBox, rollXY, type LatticePlacement } from "../lattice";
+import { chainZ, decodeRaw, placedBox, placementBox, rollXY, type LatticePlacement } from "../lattice";
 import { packSync } from "../realMeshes";
 import type { V3 } from "../render3d";
 
@@ -44,18 +44,9 @@ export function put(assetId: string, pos: V3, opts: Opts = {}): LatticePlacement
   return { assetId, pos, ...opts };
 }
 
-/** world-space box of one placement */
+/** world-space box of one placement — one canonical accessor, see placementBox */
 export function boxOf(p: LatticePlacement | null): Box | null {
-  if (!p) return null;
-  return placedBox(
-    p.assetId,
-    p.pos,
-    p.yaw ?? 0,
-    p.mirror ?? false,
-    p.scale ?? 1,
-    p.roll ?? 0,
-    p.stretchX ?? 1,
-  );
+  return placementBox(p);
 }
 
 /**

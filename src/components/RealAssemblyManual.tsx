@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import ShipPreview3D from "@/components/ShipPreview3D";
 import { Chip, HudLabel, Panel, PanelHeader } from "@/components/ui";
 import { Icon } from "@/components/Icon";
-import { assembleCorvette, heroBudget, placedBox } from "@/lib/lattice";
+import { assembleCorvette, heroBudget, placementBox } from "@/lib/lattice";
 import { assetLabel } from "@/lib/blueprintLattice";
 import { latticeBuild, type NamedRecipe } from "@/lib/fleet";
 import { ensurePack } from "@/lib/realMeshes";
@@ -119,9 +119,10 @@ export default function RealAssemblyManual({
     };
   }, [mesh, accent]);
 
-  const focusBox = focus
-    ? placedBox(focus.assetId, focus.pos, focus.yaw, focus.mirror, focus.scale ?? 1)
-    : null;
+  // The frame around the part being explained, measured with every field: the
+  // old call dropped roll and stretchX, so highlighting a canted foil drew a
+  // box that did not fit it.
+  const focusBox = focus ? placementBox(focus) : null;
 
   const jump = useCallback((n: number) => {
     setPlaying(false);
