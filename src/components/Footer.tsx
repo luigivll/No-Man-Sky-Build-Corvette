@@ -98,6 +98,11 @@ export default function Footer() {
             Sky is a trademark of Hello Games Ltd. Pop-culture ship names belong
             to their respective rights holders.
           </p>
+          {/* Baked in at server start: if this is not the build you expect, the
+              browser is showing you a cached bundle, not the running code. */}
+          <p className="mt-3 font-mono text-[0.66rem] uppercase tracking-[0.14em] text-slate-600">
+            build {process.env.NEXT_PUBLIC_BUILD ?? "dev"}
+          </p>
         </div>
       </div>
     </footer>
