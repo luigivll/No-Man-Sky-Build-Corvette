@@ -70,7 +70,18 @@ export default function ShipPreview3D({
   const [grabbing, setGrabbing] = useState(false);
 
   const activeStyle = style ?? localStyle;
-  const moduleCount = countParts(build);
+  /**
+   * How many modules are on screen.
+   *
+   * The lattice views hand over a FINISHED mesh — `mesh.parts` already holds one
+   * entry per module — while their `build` is deliberately empty, because the
+   * lattice is not catalogue-driven (`latticeBuild` has no slots to fill).
+   * Counting the build alone gave zero, and the guard below then refused to draw
+   * a ship it had 61 modules of real geometry for: every /lattice and /assembly
+   * page showed "No hull to render" over a perfectly good mesh. Count the parts
+   * that are actually going to be painted.
+   */
+  const moduleCount = suppliedMesh ? suppliedMesh.parts.length : countParts(build);
 
   const setStyle = useCallback(
     (id: string) => {
@@ -176,6 +187,8 @@ export default function ShipPreview3D({
   }
 
   const showShield = mesh.hasShield;
+  // Per-face hover listeners on a 25 000-polygon dreadnought cost more than the
+  // feature is worth, so the readout is reserved for smaller hulls.
   const interactiveHover = !compact && moduleCount <= 60;
   void HULL_PAINTS;
 

@@ -5,7 +5,7 @@ import ShipPreview3D from "@/components/ShipPreview3D";
 import { Chip, HudLabel, Panel, PanelHeader } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { assembleCorvette, heroBudget, placementBox } from "@/lib/lattice";
-import { assetLabel } from "@/lib/blueprintLattice";
+import { stepLabel } from "@/lib/blueprintLattice";
 import { latticeBuild, type NamedRecipe } from "@/lib/fleet";
 import { ensurePack } from "@/lib/realMeshes";
 import type { ShipMesh } from "@/lib/render3d";
@@ -213,7 +213,7 @@ export default function RealAssemblyManual({
               <button
                 key={`${p.assetId}-${i}`}
                 type="button"
-                title={`${i + 1}. ${assetLabel(p.assetId)}`}
+                title={`${i + 1}. ${stepLabel(p.assetId, p.role).name}`}
                 onClick={() => jump(i + 1)}
                 className="h-5 w-3 border transition-colors"
                 style={{
@@ -236,9 +236,11 @@ export default function RealAssemblyManual({
               this step
             </p>
             <p className="mt-1 text-sm font-semibold text-slate-100">
-              {focus ? assetLabel(focus.assetId) : "-"}
+              {focus ? stepLabel(focus.assetId, focus.role).name : "-"}
             </p>
-            <p className="font-mono text-[11px] text-cyan-300/80">{focus?.assetId}</p>
+            <p className="font-mono text-[11px] text-cyan-300/80">
+              {focus?.assetId} · {focus ? stepLabel(focus.assetId, focus.role).kind : ""}
+            </p>
             <p className="mt-2 text-[12px] leading-relaxed text-slate-300">
               {focus
                 ? `Fits to the ${ROLE_COPY[focus.role ?? "linked"] ?? "hull mount"}. Snap point ${focus.pos
@@ -283,7 +285,7 @@ export default function RealAssemblyManual({
                 >
                   <span className="w-6 shrink-0 text-white/35">{String(i + 1).padStart(2, "0")}</span>
                   <span className={i < step ? "text-slate-200" : "text-white/40"}>
-                    {assetLabel(p.assetId)}
+                    {stepLabel(p.assetId, p.role).name}
                   </span>
                   {p.mirror ? <span className="ml-auto text-white/30">mirror</span> : null}
                 </button>

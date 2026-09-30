@@ -104,6 +104,9 @@ function hash(text: string): number {
  * The compiler works in asset ids (B_TRU_A) but a human reads part names
  * ("Titan Heavy Booster"), so the manual needs the way back.
  */
+/** placement roles that describe a position rather than the part itself */
+const GENERIC_ROLES = new Set(["first", "linked", "tail", "starboard", "port", "dorsal", "ventral"]);
+
 const ASSET_TO_PART = new Map<string, Part>();
 for (const part of catalogueParts) {
   if (part.assetId && !ASSET_TO_PART.has(part.assetId)) ASSET_TO_PART.set(part.assetId, part);
@@ -150,6 +153,29 @@ export function assetLabel(assetId: string): string {
 
 export function partForAsset(assetId: string): Part | undefined {
   return ASSET_TO_PART.get(assetId);
+}
+
+/**
+ * What to CALL a module in a step list.
+ *
+ * `assetLabel` falls back to the family word for the 440-odd assets that are not
+ * in the catalogue, which is fine on a blueprint sheet and useless in a manual:
+ * the Falcon's saucer is 46 blocks of B_CON_5, so all 46 steps read "Connector".
+ * The placement's own role already says what the block IS ("saucer plate rim",
+ * "mandible", "upper deck"), so where the catalogue has no name for the asset the
+ * role becomes the name and the family word becomes the subtitle.
+ */
+export function stepLabel(assetId: string, role?: string): { name: string; kind: string } {
+  const catalogue = ASSET_TO_PART.get(assetId);
+  const kind = assetLabel(assetId);
+  if (catalogue) return { name: catalogue.name, kind: catalogue.category };
+  // "linked" and friends only say WHERE the module went, which the sentence
+  // below the heading already says. They are not a name.
+  if (role && !GENERIC_ROLES.has(role)) {
+    return { name: role.charAt(0).toUpperCase() + role.slice(1), kind };
+  }
+  // no catalogue name and no useful role: the family word, minus the face suffix
+  return { name: kind.split(" · ")[0], kind: assetId };
 }
 
 function assetOf(partId: string): string | null {

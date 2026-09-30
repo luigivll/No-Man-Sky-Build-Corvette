@@ -10,7 +10,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "verify": "tsx scripts/verify-logic.ts && tsx scripts/tools/bolts.ts && tsx scripts/tools/packless.ts",
+    "verify": "tsx scripts/verify-logic.ts && tsx scripts/tools/bolts.ts && tsx scripts/tools/packless.ts && tsx scripts/tools/frames.ts",
     "render:preview": "tsx scripts/render-preview.ts",
     "render:gallery": "tsx scripts/style-gallery.ts",
     "build:static": "node scripts/build-static.mjs",
